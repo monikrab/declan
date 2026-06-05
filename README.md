@@ -9,6 +9,7 @@
 | |__| | | |____  | \____  | |___   / ___ \  | |\  |
 |_____/  \______\  \_____/ \_____/ /_/   \_\ |_| \_|
 
+
 Declarative system configuration for Arch and Arch-based Linux distributions
 ```
 
@@ -22,8 +23,9 @@ operations:
 declan {-h | help}
 declan {-v | version}
 declan init
-declan relay            [options]
-declan rebuild          [options]
-declan rice             [options]
-declan backup           [options]
+declan clear
+declan relay          [options]
+declan rebuild        [options]
+declan rice           [options]
+declan backup         [options]
 ```

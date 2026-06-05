@@ -10,14 +10,17 @@ https://github.com/monikrab/declan
 
 
 import json
-import subprocess as sp
+
+from subprocess import run
 from argparse import ArgumentParser
 from pathlib import Path
 from getpass import getuser
 from sys import exit
 from textwrap import dedent
-from os import environ as env
+from os import environ as env, getenv
+from pprint import pprint
 
+from dataclasses import dataclass, field
 
 
 # Error classes
@@ -35,11 +38,21 @@ class EnvVarExistsError(DeclanError):
 # Supported operations:
 # init
 parser = ArgumentParser()
+
 parser.add_argument(
     "operation",
-    choices = ["init"]
+    nargs="?",
+    choices = ["init", "relay", "rebuild"]
 )
+
+parser.add_argument(
+    "clean",
+    nargs="?",
+    choices = ["noclean"]
+)
+
 args = parser.parse_args()
+
 
 
 
@@ -109,7 +122,7 @@ def init():
     # Add an environment variable to the login shell's config
     env_var_confirm = ""
     while env_var_confirm.lower() not in ["y", "n"]:
-        env_var_confirm = str(input(" Add path to a permanent environment variable? (y/n): "))
+        env_var_confirm = str(input(" Add path to a permanent environment variable? [Y/n]: "))
 
     if env_var_confirm == "y":
         user_sh = env.get("SHELL")
@@ -135,19 +148,74 @@ def init():
     return config_path
 
 
-# def parse(path):
-# packages = [...]
-# services = [...]
-# config = true/f, [...]
-# backup = true/f [...]
+
+def parse(path):
+    with open(path, "r") as f:
+        declan = json.load(f)
 
 
-# def relay():
-# yay -Sy --noconfirm --noprogressbar [pkgs]
+    """
+    Codes:
+        P -> Packages
+        S -> Services
+        C -> Configs
+        B -> Backup
+    """
+
+    match (bool(declan["packages"]), bool(declan["services"]), declan["configs"]["enabled"], declan["backup"]["enabled"]):
+        case (True, True, True, True):
+            return ["PSCB", declan["packages"], declan["services"], declan["configs"], declan["backup"]]
+    
+        case (True, True, True, False):
+            return ["PSC", declan["packages"], declan["services"], declan["configs"], None]
+        case (False, True, True, True):
+            return ["SCB", None, declan["services"], declan["configs"], declan["backup"]]
+        case (True, False, True, True):
+            return ["PCB", declan["packages"], None, declan["configs"], declan["backup"]]
+        case (True, True, False, True):
+            return ["PSB", declan["packages"], declan["services"], None, declan["backup"]]
+
+        case (True, True, False, False):
+            return ["PS", declan["packages"], declan["services"], None, None]
+        case (False, False, True, True):
+            return ["CB", None, None, declan["configs"], declan["backup"]]
+        case (True, False, True, False):
+            return ["PC", declan["packages"], None, declan["configs"], None]
+        case (False, True, False, True):
+            return ["SB", None, declan["services"], None, declan["backup"]]
+        case (True, False, False, True):
+            return ["PB", declan["packages"], None, None, declan["backup"]]
+        case (False, True, True, False):
+            return ["SC", None, declan["services"], declan["configs"], None]
+        
+        case (True, False, False, False):
+            return ["P", declan["packages"], None, None, None]
+        case (False, True, False, False):
+            return ["S", None, declan["services"], None, None]
+        case (False, False, True, False):
+            return ["C", None, None, declan["configs"], None]
+        case (False, False, False, True):
+            return ["B", None, None, None, declan["backup"]]
 
 
 
-# def rebuild():
+def relay(pkgs, services):
+    if pkgs != None:     print("\033[1mPackages to install:\033[0m\n\n", '\n'.join(pkgs), sep="", end="\n\n")
+    if services != None: print("Services to enable:\n\n", '\n'.join(services), sep="", end="\n\n")
+
+    if str(input(":: Proceed? [Y/n]: ")).lower() == "y":
+        print()
+        run(["sudo", "echo"])
+        run(
+            ["yay", "-Sy", "--noconfirm", "--noprogressbar", *pkgs],
+            capture_output=True,
+            text=True
+        )
+
+
+
+
+# def rebuild(pkgs, services):
 
 
 
@@ -162,8 +230,22 @@ def init():
 
 def main():
     if args.operation == "init": config_path = init()
+    else: config_path = getenv("DECLAN_CONFIG_PATH")
 
-    # parse_config(config_path)
+    fields = parse(config_path)
+
+    if args.operation == "relay":
+        if "P" or "S" in fields[0]:
+            if "S" not in fields[0]:
+                relay(fields[1], None)
+            elif "P" not in fields[0]:
+                relay(None, fields[2])
+            else:
+                relay(fields[1], fields[2])
+                
+    if args.operation == "rebuild":
+        if "P" or "S" in fields[0]: rebuild()
+
 
 try: main()
 except DeclanError as error:
