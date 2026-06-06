@@ -19,8 +19,8 @@ from sys import exit
 from textwrap import dedent
 from os import environ as env, getenv
 from pprint import pprint
+from shutil import copy as copy, which as which
 
-from dataclasses import dataclass, field
 
 
 # Error classes
@@ -36,7 +36,7 @@ class EnvVarExistsError(DeclanError):
 
 
 # Supported operations:
-# init
+# init, relay (partial), rebuild (partial)
 parser = ArgumentParser()
 
 parser.add_argument(
@@ -73,7 +73,7 @@ def init():
   _____    _______   _____   _                 _   _ 
  |  __ \\  |  ____/  / ____\\ | |         Λ     | \\ | |
  | |  | | | |___   | /      | |        / \\    |  \\| |
- | |  | | |  ___|  | |      | |       / △ \\   | . ` |
+ | |  | | |  ___|  | |      | |       / △ \\   |     |
  | |__| | | |____  | \\____  | |___   / ___ \\  | |\\  |
  |_____/  \\______\\  \\_____/ \\_____/ /_/   \\_\\ |_| \\_|
         \033[3mdeclarative system configuration for 󰣇\033[0m""",
@@ -172,20 +172,23 @@ def parse(path):
 
     if declan["packages"]:
         enabled_features += "P"
-        packages = declan["packages"]
-        values.append(packages)
+        packages = declan["packages"]; values.append(packages)
+
     if declan["services"]:
         enabled_features += "S"
-        services = declan["services"]
-        values.append(services)
+        services = declan["services"]; values.append(services)
+
+    if declan["gc"]["enabled"]:
+        enabled_features += "G"
+        clean = declan["gc"]["clean"]; values.append(clean)
+
     if declan["configs"]["enabled"]:
         enabled_features += "C"
-        configs = declan["configs"]
-        values.append(configs)
+        configs = declan["configs"]; values.append(configs)
+
     if declan["backup"]["enabled"]:
         enabled_features += "B"
-        backup = declan["backup"]
-        values.append(backup)
+        backup = declan["backup"]; values.append(backup)
 
     values[0] = enabled_features
     return values
@@ -194,12 +197,17 @@ def parse(path):
 
 def relay(pkgs, services):
     # TODO: Add caching to detect which packages are new at list time
-    if pkgs != None:     print("\033[1mPackages to install:\033[0m\n\n", '\n'.join(pkgs), sep="", end="\n\n")
-    if services != None: print("Services to enable:\n\n", '\n'.join(services), sep="", end="\n\n")
+    if pkgs != None:
+        print("\033[1mPackages to install:\033[0m\n\n", '\n'.join(pkgs), sep="", end="\n\n")
+    if services != None:
+        print("Services to enable:\n\n", '\n'.join(services), sep="", end="\n\n")
+    if services and packages == None:
+        print("There is nothing to do")
+
 
     if str(input(":: Proceed? [Y/n]: ")).lower() == "y":
         print()
-        run(["sudo", "echo"])
+        run(["sudo", "-v"])
         run(
             ["yay", "-S", "--noconfirm", "--noprogressbar", "--needed", *pkgs],
             text=True
@@ -208,12 +216,17 @@ def relay(pkgs, services):
 
 
 def rebuild(pkgs, services):
-    if pkgs != None:     print("\033[1mPackages to upgrade:\033[0m\n\n", '\n'.join(pkgs), sep="", end="\n\n")
-    if services != None: print("Services to enable:\n\n", '\n'.join(services), sep="", end="\n\n")
+    if pkgs != None:
+        print("\033[1mPackages to upgrade:\033[0m\n\n", '\n'.join(pkgs), sep="", end="\n\n")
+    if services != None:
+        print("Services to enable:\n\n", '\n'.join(services), sep="", end="\n\n")
+    if services and packages == None:
+        print("There is nothing to do")
+
 
     if str(input(":: Proceed? [Y/n]: ")).lower() == "y":
         print()
-        run(["sudo", "echo"])
+        run(["sudo", "-v"])
         run(
             ["yay", "-Syu", "--noconfirm", "--noprogressbar", *pkgs],
             text=True
@@ -234,27 +247,54 @@ def rebuild(pkgs, services):
 
 
 
+# def clear():
+
+
+
 def main():
     if args.operation == "init": config_path = init()
     else: config_path = getenv("DECLAN_CONFIG_PATH")
 
-    fields = parse(config_path)
+    features = parse(config_path)
 
-    print(fields)
+    def check_yay():
+        if which("yay") is None:
+            install_yay = str(input("\033[91m error:\033[0m yay (AUR helper) is not installed\n\n"
+                                    " Without it, the following operations are unavailable:\n"
+                                    " relay, rebuild\n\n"
+                                    " Would you like to install it now? [Y/n]: "))
 
-    # if args.operation == "relay":
-    #     if "P" or "S" in fields[0]:
-    #         if "S" not in fields[0]:
-    #             relay(fields[1], None)
-    #         elif "P" not in fields[0]:
-    #             relay(None, fields[2])
-    #         else:
-    #             relay(fields[1], fields[2])
+        if install_yay.lower() == "y":
+            print("TODO")
+        else:
+            exit(1)
+        
+
+    if args.operation == "relay":
+        check_yay()
+        if "P" in features[0] or "S" in features[0]:
+            if "S" not in features[0]:
+                relay(features[1], None)
+            elif "P" not in features[0]:
+                relay(None, features[2])
+            else:
+                relay(features[1], features[2])
                 
     # if args.operation == "rebuild":
-    #     if "P" or "S" in fields[0]: rebuild()
+        # check_yay()
+        # if "P" in features[0] or "S" in features[0]:
+        #     if "S" not in features[0]:
+        #         relay(features[1], None)
+        #     elif "P" not in features[0]:
+        #         relay(None, features[2])
+        #     else:
+        #         relay(features[1], features[2])
 
 
-try: main()
-except DeclanError as error:
-    print(error); exit(1)
+try:
+    main()
+except DeclanError:
+    print(DeclanError)
+    exit(1)
+except (KeyboardInterrupt, EOFError):
+    print("\n\n\033[91m error:\033[0m execution interrupted by user!")
