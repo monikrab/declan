@@ -162,44 +162,33 @@ def parse(path):
         B -> Backup
     """
 
-    match (bool(declan["packages"]), bool(declan["services"]), declan["configs"]["enabled"], declan["backup"]["enabled"]):
-        case (True, True, True, True):
-            return ["PSCB", declan["packages"], declan["services"], declan["configs"], declan["backup"]]
-    
-        case (True, True, True, False):
-            return ["PSC", declan["packages"], declan["services"], declan["configs"], None]
-        case (False, True, True, True):
-            return ["SCB", None, declan["services"], declan["configs"], declan["backup"]]
-        case (True, False, True, True):
-            return ["PCB", declan["packages"], None, declan["configs"], declan["backup"]]
-        case (True, True, False, True):
-            return ["PSB", declan["packages"], declan["services"], None, declan["backup"]]
+    enabled_features = ""
+    values = [None]; values[0]
 
-        case (True, True, False, False):
-            return ["PS", declan["packages"], declan["services"], None, None]
-        case (False, False, True, True):
-            return ["CB", None, None, declan["configs"], declan["backup"]]
-        case (True, False, True, False):
-            return ["PC", declan["packages"], None, declan["configs"], None]
-        case (False, True, False, True):
-            return ["SB", None, declan["services"], None, declan["backup"]]
-        case (True, False, False, True):
-            return ["PB", declan["packages"], None, None, declan["backup"]]
-        case (False, True, True, False):
-            return ["SC", None, declan["services"], declan["configs"], None]
-        
-        case (True, False, False, False):
-            return ["P", declan["packages"], None, None, None]
-        case (False, True, False, False):
-            return ["S", None, declan["services"], None, None]
-        case (False, False, True, False):
-            return ["C", None, None, declan["configs"], None]
-        case (False, False, False, True):
-            return ["B", None, None, None, declan["backup"]]
+    if declan["packages"]:
+        enabled_features += "P"
+        packages = declan["packages"]
+        values.append(packages)
+    if declan["services"]:
+        enabled_features += "S"
+        services = declan["services"]
+        values.append(services)
+    if declan["configs"]["enabled"]:
+        enabled_features += "C"
+        configs = declan["configs"]
+        values.append(configs)
+    if declan["backup"]["enabled"]:
+        enabled_features += "B"
+        backup = declan["backup"]
+        values.append(backup)
+
+    values[0] = enabled_features
+    return values
 
 
 
 def relay(pkgs, services):
+    # TODO: Add caching to detect which packages are new at list time
     if pkgs != None:     print("\033[1mPackages to install:\033[0m\n\n", '\n'.join(pkgs), sep="", end="\n\n")
     if services != None: print("Services to enable:\n\n", '\n'.join(services), sep="", end="\n\n")
 
@@ -207,16 +196,23 @@ def relay(pkgs, services):
         print()
         run(["sudo", "echo"])
         run(
-            ["yay", "-Sy", "--noconfirm", "--noprogressbar", *pkgs],
-            capture_output=True,
+            ["yay", "-S", "--noconfirm", "--noprogressbar", "--needed", *pkgs],
             text=True
         )
 
 
 
+def rebuild(pkgs, services):
+    if pkgs != None:     print("\033[1mPackages to upgrade:\033[0m\n\n", '\n'.join(pkgs), sep="", end="\n\n")
+    if services != None: print("Services to enable:\n\n", '\n'.join(services), sep="", end="\n\n")
 
-# def rebuild(pkgs, services):
-
+    if str(input(":: Proceed? [Y/n]: ")).lower() == "y":
+        print()
+        run(["sudo", "echo"])
+        run(
+            ["yay", "-Syu", "--noconfirm", "--noprogressbar", *pkgs],
+            text=True
+        )
 
 
 # def rice():
@@ -234,17 +230,19 @@ def main():
 
     fields = parse(config_path)
 
-    if args.operation == "relay":
-        if "P" or "S" in fields[0]:
-            if "S" not in fields[0]:
-                relay(fields[1], None)
-            elif "P" not in fields[0]:
-                relay(None, fields[2])
-            else:
-                relay(fields[1], fields[2])
+    print(fields)
+
+    # if args.operation == "relay":
+    #     if "P" or "S" in fields[0]:
+    #         if "S" not in fields[0]:
+    #             relay(fields[1], None)
+    #         elif "P" not in fields[0]:
+    #             relay(None, fields[2])
+    #         else:
+    #             relay(fields[1], fields[2])
                 
-    if args.operation == "rebuild":
-        if "P" or "S" in fields[0]: rebuild()
+    # if args.operation == "rebuild":
+    #     if "P" or "S" in fields[0]: rebuild()
 
 
 try: main()
