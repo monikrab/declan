@@ -101,9 +101,14 @@ def init():
     
     "services": [],
 
+    "gc": {{
+        "enabled": false,
+        "clean": []
+    }},
+
     "configs": {{
         "enabled": false,
-        "files": []
+        "include": []
     }},
 
     "backup": {{
@@ -213,6 +218,11 @@ def rebuild(pkgs, services):
             ["yay", "-Syu", "--noconfirm", "--noprogressbar", *pkgs],
             text=True
         )
+
+
+
+# def garbage_collect():
+
 
 
 # def rice():
