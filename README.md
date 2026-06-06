@@ -1,12 +1,12 @@
 
-```
+<pre><code>
  _____    _______   _____   _          _      _   _
 |  __ \  |  ____/  / ____\ | |        / \    | \ | |
 | |  | | | |___   | /      | |       /   \   |  \| |
 | |  | | |  ___|  | |      | |      /  ∆  \  |     |
 | |__| | | |____  | \____  | |___  /  ___  \ | |\  |
 |_____/  \______\  \_____/ \_____/ \_/   \_/ |_| \_|
-
+</code></pre>
 
 Declarative system configuration for
 Arch and Arch-based Linux distributions
