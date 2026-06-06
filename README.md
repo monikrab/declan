@@ -24,6 +24,7 @@ declan {-h | help}
 declan {-v | version}
 declan init
 declan clear
+declan gc         [options]
 declan relay      [options]
 declan rebuild    [options]
 declan rice       [options]
