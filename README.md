@@ -14,7 +14,7 @@ Arch and Arch-based Linux distributions
 
 
 ## &nbsp;
-## Configuration file structure
+## Configuration
 
 ```
 {
