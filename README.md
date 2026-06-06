@@ -14,7 +14,35 @@ Arch and Arch-based Linux distributions
 
 
 ## &nbsp;
+## Configuration file structure
 
+```
+{
+    "description": "<user>'s <distro> configuration",
+
+    "packages": [],
+    
+    "services": [],
+
+    "gc": {
+        "enabled": true/false,
+        "clean": []
+    },
+
+    "configs": {
+        "enabled": true/false,
+        "include": []
+    },
+
+    "backup": {
+        "enabled": true/false,
+        "include": []
+    }
+}
+```
+
+
+## &nbsp;
 ## Usage
 
 ```
