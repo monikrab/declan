@@ -1,6 +1,4 @@
 
-# &nbsp;
-
 ```
  _____    _______   _____   _          _      _   _
 |  __ \  |  ____/  / ____\ | |        / \    | \ | |
@@ -13,6 +11,8 @@
 Declarative system configuration for Arch and Arch-based Linux distributions
 ```
 
+
+## &nbsp;
 
 ## Usage
 
