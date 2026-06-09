@@ -11,14 +11,14 @@ https://github.com/monikrab/declan
 
 import json
 
-from subprocess import run, DEVNULL, PIPE
-from argparse import ArgumentParser
-from pathlib import Path
-from getpass import getuser
-from sys import exit
-from textwrap import dedent
-from shutil import copy2, which
-from os import environ as env, getenv
+from argparse import ArgumentParser        # Global
+from pathlib import Path                   # Global, init, cache_config
+from getpass import getuser                # init
+from sys import exit                       # init
+from os import environ as env, getenv      # init
+from textwrap import dedent                # init
+from subprocess import run, DEVNULL, PIPE  # relay_rebuild
+from shutil import copy2, which            # cache_config, main
 
 
 
@@ -171,7 +171,10 @@ def parse_config(path):
 
     if declan["packages"]:
         enabled_features += "P"
-        packages = declan["packages"]; values.append(packages)
+        packages = declan["packages"]
+        # TODO: Add generic "repo" support
+        # e.g. core { "foo", "bar" } reduces to ["core/foo", "core/bar"] 
+        values.append(packages)
 
     if declan["services"]:
         enabled_features += "S"
@@ -212,8 +215,7 @@ def relay_rebuild(packages, services, cache_path):
             ["pacman", "-Quq"], stdout=PIPE
         )
         run(
-            ["column", "-S", "2"],
-            input=pending_updates.stdout
+            ["column", "-S", "2"], input=pending_updates.stdout
         )
         print()
         
