@@ -3,8 +3,36 @@
 .SH NAME
 Declan \- Declarative system configuration tool for Arch and Arch based Linux distributions.
 
-.SH SYNOPSYS
-declan <operation> [option]
+.SH SYNOPSIS
+.B declan
+.IR < operation > " [option]"
 
 .SH DESCRIPTION
-Manage 
+Manage packages, cleanups, configuration files, and backups.
+
+.SS File format
+"packages"
+.br
+list of packages to remain installed and updated
+.br
+.IR NOTE(!):
+Not necessarily exhaustive; required dependencies not specified.
+
+"services"
+list of packages keep enabled
+
+"gc": {
+    "enabled": true/false,
+    "clean": []
+},
+
+"configs": {
+    "enabled": true/false,
+    "include": []
+},
+
+"backup": {
+    "enabled": true/false,
+    "include": []
+}
+}

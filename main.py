@@ -11,7 +11,7 @@ https://github.com/monikrab/declan
 
 import json
 
-from subprocess import run
+from subprocess import run, DEVNULL, PIPE
 from argparse import ArgumentParser
 from pathlib import Path
 from getpass import getuser
@@ -41,7 +41,7 @@ parser = ArgumentParser()
 
 parser.add_argument(
     "operation",
-    nargs="?",
+    nargs="?", # TODO: add usage when no flags passed
     choices = ["init", "relay", "rebuild"]
 )
 
@@ -83,7 +83,7 @@ def init():
 
     # Name the file
     config_name = ""
-    while not config_name.strip():
+    while not config_name.strip(): # remove whitespace
         config_name = str(input("\n Enter the name for your configuration file.\n"
                                 " Do not add a file extension.\n\n"
                                 " Name: "))
@@ -154,8 +154,8 @@ def init():
 
 
 
-def parse(path):
-    with open(path, "r") as f:
+def parse(config_path):
+    with open(config_path, "r") as f:
         declan = json.load(f)
 
 
@@ -195,43 +195,59 @@ def parse(path):
 
 
 
-def relay(pkgs, services):
-    # TODO: Add caching to detect which packages are new at list time
-    if pkgs != None:
-        print("\033[1mPackages to install:\033[0m\n\n", '\n'.join(pkgs), sep="", end="\n\n")
-    if services != None:
-        print("Services to enable:\n\n", '\n'.join(services), sep="", end="\n\n")
-    if services and packages == None:
+# TODO: Add caching to detect which packages are new at list time
+def relay_rebuild(packages, services):
+    if services is None and packages is None:
         print("There is nothing to do")
+        return
 
+    print()
+    if args.operation == "relay":
+        if packages is not None:
+            print("\033[1mPackages to install:\033[0m\n", '\n'.join(packages), sep="", end="\n\n")
 
-    if str(input(":: Proceed? [Y/n]: ")).lower() == "y":
-        print()
-        run(["sudo", "-v"])
-        run(
-            ["yay", "-S", "--noconfirm", "--noprogressbar", "--needed", *pkgs],
-            text=True
+    elif args.operation == "rebuild":
+        print("\033[1mPackages to update:\033[0m")
+
+        pending_updates = run(
+            ["pacman", "-Quq"], stdout=PIPE
         )
-
-
-
-def rebuild(pkgs, services):
-    if pkgs != None:
-        print("\033[1mPackages to upgrade:\033[0m\n\n", '\n'.join(pkgs), sep="", end="\n\n")
-    if services != None:
-        print("Services to enable:\n\n", '\n'.join(services), sep="", end="\n\n")
-    if services and packages == None:
-        print("There is nothing to do")
-
-
-    if str(input(":: Proceed? [Y/n]: ")).lower() == "y":
-        print()
-        run(["sudo", "-v"])
         run(
-            ["yay", "-Syu", "--noconfirm", "--noprogressbar", *pkgs],
-            text=True
+            ["column", "-S", "2"],
+            input=pending_updates.stdout
         )
+        print()
+        
+    if services is not None:
+        print("\033[1mServices to enable:\033[0m\n", '\n'.join(services), sep="", end="\n\n")
 
+
+    while 1:
+        proceed = str(input(":: Proceed? [Y/n]: ")).strip().lower(); print()
+        if proceed in ["y", "n"]:
+            if proceed == "n": return
+            break
+
+
+    run(["sudo", "-v"])
+
+    if packages is not None:
+        if args.operation == "relay":
+            run(
+                ["yay", "-S", "--noconfirm", "--noprogressbar", "--needed", *packages],
+            )
+        elif args.operation == "rebuild":        
+            run(
+                ["yay", "-Syu", "--noconfirm", "--noprogressbar", *packages],
+            )
+        
+    if services is not None:
+        print("\nEnabling services...", end="\n")
+        run(
+            ["sudo", "systemctl", "enable", "--now", *services],
+        )
+        print("Done.")
+        
 
 
 # def garbage_collect():
@@ -257,12 +273,15 @@ def main():
 
     features = parse(config_path)
 
+
     def check_yay():
         if which("yay") is None:
             install_yay = str(input("\033[91m error:\033[0m yay (AUR helper) is not installed\n\n"
                                     " Without it, the following operations are unavailable:\n"
                                     " relay, rebuild\n\n"
                                     " Would you like to install it now? [Y/n]: "))
+        else:
+            return
 
         if install_yay.lower() == "y":
             print("TODO")
@@ -270,15 +289,15 @@ def main():
             exit(1)
         
 
-    if args.operation == "relay":
+    if args.operation in ["relay", "rebuild"]:
         check_yay()
         if "P" in features[0] or "S" in features[0]:
             if "S" not in features[0]:
-                relay(features[1], None)
+                relay_rebuild(features[1], None)
             elif "P" not in features[0]:
-                relay(None, features[2])
+                relay_rebuild(None, features[1])
             else:
-                relay(features[1], features[2])
+                relay_rebuild(features[1], features[2])
                 
     # if args.operation == "rebuild":
         # check_yay()
