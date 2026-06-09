@@ -17,9 +17,8 @@ from pathlib import Path
 from getpass import getuser
 from sys import exit
 from textwrap import dedent
+from shutil import copy2, which
 from os import environ as env, getenv
-from pprint import pprint
-from shutil import copy as copy, which as which
 
 
 
@@ -70,13 +69,13 @@ def init():
     # Welcome message
     print(
         """
- _____    _______   _____   _          _      _   _
-|  __ \\  |  ____/  / ____\\ | |        / \\    | \\ | |
-| |  | | | |___   | /      | |       /   \\   |  \\| |
-| |  | | |  ___|  | |      | |      /  ∆  \\  |     |
-| |__| | | |____  | \\____  | |___  /  ___  \\ | |\\  |
-|_____/  \\______\\  \\_____/ \\_____/ \\_/   \\_/ |_| \\_|
-       \033[3mdeclarative system configuration for 󰣇\033[0m""",
+  _____    _______   _____   _          _      _   _
+ |  __ \\  |  ____/  / ____\\ | |        / \\    | \\ | |
+ | |  | | | |___   | /      | |       /   \\   |  \\| |
+ | |  | | |  ___|  | |      | |      /  ∆  \\  |     |
+ | |__| | | |____  | \\____  | |___  /  ___  \\ | |\\  |
+ |_____/  \\______\\  \\_____/ \\_____/ \\_/   \\_/ |_| \\_|
+        \033[3mdeclarative system configuration for 󰣇\033[0m""",
     end="\n\n"
     )
 
@@ -154,8 +153,8 @@ def init():
 
 
 
-def parse(config_path):
-    with open(config_path, "r") as f:
+def parse_config(path):
+    with open(path, "r") as f:
         declan = json.load(f)
 
 
@@ -196,7 +195,7 @@ def parse(config_path):
 
 
 # TODO: Add caching to detect which packages are new at list time
-def relay_rebuild(packages, services):
+def relay_rebuild(packages, services, cache_path):
     if services is None and packages is None:
         print("There is nothing to do")
         return
@@ -223,7 +222,7 @@ def relay_rebuild(packages, services):
 
 
     while 1:
-        proceed = str(input(":: Proceed? [Y/n]: ")).strip().lower(); print()
+        proceed = str(input("\033[35m::\033[0m Proceed? [Y/n]: ")).strip().lower(); print()
         if proceed in ["y", "n"]:
             if proceed == "n": return
             break
@@ -234,7 +233,8 @@ def relay_rebuild(packages, services):
     if packages is not None:
         if args.operation == "relay":
             run(
-                ["yay", "-S", "--noconfirm", "--noprogressbar", "--needed", *packages],
+                ["yay", "-S", "--asexplicit",
+                "--noconfirm", "--noprogressbar", "--needed", *packages],
             )
         elif args.operation == "rebuild":        
             run(
@@ -248,6 +248,18 @@ def relay_rebuild(packages, services):
         )
         print("Done.")
         
+
+
+def cache_config(home_path, user):
+    # Keep cached configs in .cache/declan
+    cache_path = Path(f"/home/{user}/.cache/declan")
+    cache_path.mkdir(exist_ok=True)
+
+    copy2(home_path, cache_path)
+
+    # TODO: Rename cached file to {edit_timestamp}.json
+    # cache_filepath = cache_path + ""
+
 
 
 # def garbage_collect():
@@ -269,9 +281,11 @@ def relay_rebuild(packages, services):
 
 def main():
     if args.operation == "init": config_path = init()
-    else: config_path = getenv("DECLAN_CONFIG_PATH")
+    else:
+        config_path = getenv("DECLAN_CONFIG_PATH")
+        username = getuser()
 
-    features = parse(config_path)
+    features = parse_config(config_path)
 
 
     def check_yay():
@@ -291,29 +305,26 @@ def main():
 
     if args.operation in ["relay", "rebuild"]:
         check_yay()
+
+        cache_path = f"/home/{username}/.cache/declan/" + config_path[config_path.rfind("/") + 1:]
+        
         if "P" in features[0] or "S" in features[0]:
             if "S" not in features[0]:
-                relay_rebuild(features[1], None)
+                relay_rebuild(features[1], None, cache_path)
             elif "P" not in features[0]:
-                relay_rebuild(None, features[1])
+                relay_rebuild(None, features[1], cache_path)
             else:
-                relay_rebuild(features[1], features[2])
-                
-    # if args.operation == "rebuild":
-        # check_yay()
-        # if "P" in features[0] or "S" in features[0]:
-        #     if "S" not in features[0]:
-        #         relay(features[1], None)
-        #     elif "P" not in features[0]:
-        #         relay(None, features[2])
-        #     else:
-        #         relay(features[1], features[2])
+                relay_rebuild(features[1], features[2], cache_path)
+
+            cache_config(config_path, username)
 
 
 try:
     main()
+
 except DeclanError:
     print(DeclanError)
     exit(1)
+
 except (KeyboardInterrupt, EOFError):
     print("\n\n\033[91m error:\033[0m execution interrupted by user!")
