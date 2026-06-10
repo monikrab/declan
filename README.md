@@ -46,7 +46,7 @@ Arch and Arch-based Linux distributions
 ## Usage
 
 ```
-declan <operation> [...]
+declan <operation> [OPTION]
 
 operations:
 declan {-h | help}
