@@ -19,6 +19,9 @@ from os import environ as env, getenv      # init
 from textwrap import dedent                # init
 from subprocess import run, DEVNULL, PIPE  # relay_rebuild
 from shutil import copy2, which            # cache_config, main
+from datetime import datetime as dt        # cache_config
+
+from pprint import pprint
 
 
 
@@ -34,8 +37,10 @@ class EnvVarExistsError(DeclanError):
 
 
 
-# Supported operations:
-# init, relay (partial), rebuild (partial)
+# Operations (so far):
+# init
+# relay (partial)
+# rebuild (partial)
 parser = ArgumentParser()
 
 parser.add_argument(
@@ -44,18 +49,18 @@ parser.add_argument(
     choices = ["init", "relay", "rebuild"]
 )
 
-parser.add_argument(
-    "clean",
-    nargs="?",
-    choices = ["noclean"]
-)
+# TODO: Add support for optional GC on rebuild
+# parser.add_argument(
+#     "clean",
+#     nargs="?",
+#     choices = ["noclean"]
+# )
 
 args = parser.parse_args()
 
 
 
-
-# Check which Arch(-based) distribution is in use
+# Check which distribution is in use
 release = Path("/etc/os-release").read_text()
 
 if   "ID=cachyos" in release:     distro = "CachyOS"
@@ -66,21 +71,20 @@ elif "ID=endeavouros" in release: distro = "EndeavourOS"
 
 
 def init():
-    # Welcome message
     print(
-        """
+        """\033[1m
   _____    _______   _____   _          _      _   _
  |  __ \\  |  ____/  / ____\\ | |        / \\    | \\ | |
  | |  | | | |___   | /      | |       /   \\   |  \\| |
  | |  | | |  ___|  | |      | |      /  ∆  \\  |     |
  | |__| | | |____  | \\____  | |___  /  ___  \\ | |\\  |
- |_____/  \\______\\  \\_____/ \\_____/ \\_/   \\_/ |_| \\_|
-        \033[3mdeclarative system configuration for 󰣇\033[0m""",
+ |_____/  \\______\\  \\_____/ \\_____/ \\_/   \\_/ |_| \\_|\033[0m
+        \033[3;90mdeclarative system configuration for 󰣇\033[0m""",
     end="\n\n"
     )
 
 
-    # Name the file
+    # Name the config file
     config_name = ""
     while not config_name.strip(): # remove whitespace
         config_name = str(input("\n Enter the name for your configuration file.\n"
@@ -90,7 +94,10 @@ def init():
     config_path = Path(f"/home/{username}/{config_name}.json")
 
 
-    # Create the file if it doesn't exist
+    # TODO: Add searching for cached configs during init, e.g.:
+    # "warning: cached configuration found in ~/.cache/declan/..."
+    # "Would you like to use it? [Y/n]: "
+
     try:
         with open(config_path, "x") as f:
             f.write(f"""{{
@@ -136,19 +143,21 @@ def init():
             export DECLAN_CONFIG_PATH='{config_path}'"""
         )
 
-
-        if   user_sh in ["/usr/bin/fish", "/bin/fish"]: path = ".config/fish/config.fish" 
-        elif user_sh in ["/usr/bin/zsh", "/bin/zsh"]:   path = ".zshrc"
-        elif user_sh in ["/usr/bin/bash", "/bin/bash"]: path = ".bashrc"
+        if   user_sh in ["/usr/bin/fish", "/bin/fish"]: sh_path = ".config/fish/config.fish" 
+        elif user_sh in ["/usr/bin/zsh", "/bin/zsh"]:   sh_path = ".zshrc"
+        elif user_sh in ["/usr/bin/bash", "/bin/bash"]: sh_path = ".bashrc"
         
-        with open(f"/home/{username}/{path}", "a+") as f:
+        with open(f"/home/{username}/{sh_path}", "a+") as f:
             f.seek(0)
-            if "DECLAN_CONFIG_PATH" in f.read(): raise EnvVarExistsError(path)
+            if "DECLAN_CONFIG_PATH" in f.read(): raise EnvVarExistsError(sh_path)
             else:
                 f.write(env_var)
                 print("\n\033[92m Environment variable set.\033[0m", end="\n")
 
 
+    print("\033[92m\n Declan initialization finished.\n"
+          " For usage instructions, type 'declan --h' or 'man 1 declan' into your shell\033[0m\n"
+          "\033[95m Enjoy :V\033[0m")
     return config_path
 
 
@@ -173,7 +182,7 @@ def parse_config(path):
         enabled_features += "P"
         packages = declan["packages"]
         # TODO: Add generic "repo" support
-        # e.g. core { "foo", "bar" } reduces to ["core/foo", "core/bar"] 
+        # e.g. "core" { "foo", "bar" } reduces to ["core/foo", "core/bar"] 
         values.append(packages)
 
     if declan["services"]:
@@ -252,24 +261,26 @@ def relay_rebuild(packages, services, cache_path):
         
 
 
+# Keep cached configs in .cache/declan
+
 def cache_config(home_path, user):
-    # Keep cached configs in .cache/declan
     cache_path = Path(f"/home/{user}/.cache/declan")
     cache_path.mkdir(exist_ok=True)
 
-    copy2(home_path, cache_path)
+    stats = home_path.stat()
+    last_modification = dt.fromtimestamp(stats.st_mtime)
+    date_l_m = last_modification.strftime("%Y-%m-%d_%H-%M")
 
-    # TODO: Rename cached file to {edit_timestamp}.json
-    # cache_filepath = cache_path + ""
+    copy2(home_path, cache_path / (date_l_m + ".json") )
 
 
 
-# def garbage_collect():
-
+# def collect_garbage():
+# cascade
 
 
 # def rice():
-# --push
+# push
 
 
 
@@ -318,15 +329,14 @@ def main():
             else:
                 relay_rebuild(features[1], features[2], cache_path)
 
-            cache_config(config_path, username)
+        cache_config(Path(config_path), username)
+
 
 
 try:
     main()
-
-except DeclanError:
-    print(DeclanError)
+except DeclanError as error:
+    print(error)
     exit(1)
-
 except (KeyboardInterrupt, EOFError):
     print("\n\n\033[91m error:\033[0m execution interrupted by user!")
