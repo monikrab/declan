@@ -46,16 +46,23 @@ Arch and Arch-based Linux distributions
 ## Usage
 
 ```
-declan <operation> [OPTION]
+declan <operation> [options]
 
 operations:
-declan {-h | help}
-declan {-v | version}
-declan init
-declan clear
-declan relay
-declan rebuild   [ --clean ]
-declan gc        [ --casc  ]
-declan rice      [ --push  ]
-declan backup
+    declan {-h | help}
+    declan {-v | version}
+
+    declan init
+    declan clear
+
+    declan relay    [ options ]
+    declan rebuild  [ options ]
+    declan gc
+
+    declan rice     [  -push  ]
+    declan backup
+
+options:
+    --clean
+    --casc
 ```
