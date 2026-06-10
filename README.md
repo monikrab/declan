@@ -54,8 +54,8 @@ declan {-v | version}
 declan init
 declan clear
 declan relay
-declan rebuild    [ clean ]
-declan gc         [cascade]
-declan rice       [ -push ]
+declan rebuild   [ --clean ]
+declan gc        [ --casc  ]
+declan rice      [ --push  ]
 declan backup
 ```
