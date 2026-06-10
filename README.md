@@ -59,10 +59,14 @@ operations:
     declan rebuild  [ options ]
     declan gc
 
-    declan rice     [  -push  ]
+    declan rice     [ options ]
     declan backup
 
 options:
+    (relay/rebuild)
     --clean
     --casc
+
+    (rice)
+    --push
 ```
