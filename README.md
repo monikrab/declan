@@ -49,24 +49,16 @@ Arch and Arch-based Linux distributions
 declan <operation> [options]
 
 operations:
-    declan {-h | help}
-    declan {-v | version}
+    declan {-h | --help}
+    declan {-v | --version}
 
     declan init
     declan clear
 
-    declan relay    [ options ]
-    declan rebuild  [ options ]
+    declan relay    [--gc] [--casc]
+    declan rebuild  [--gc] [--casc]
     declan gc
 
-    declan rice     [ options ]
+    declan rice     [--push]
     declan backup
-
-options:
-    (relay/rebuild)
-    --clean
-    --casc
-
-    (rice)
-    --push
 ```
