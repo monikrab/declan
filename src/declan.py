@@ -22,6 +22,10 @@ class EnvVarExistsError(DeclanError):
  Make sure it matches your configuration file's path!"""
         )
 
+class ConfigAlreadyInit(DeclanError):
+    def __init__(self, path):
+        super().__init__(f"""\033[91m error:\033[0m config already initialized at {path}""")
+
 
 
 parser = ArgumentParser(
@@ -116,30 +120,27 @@ def init():
     elif "ID=archcraft" in release:   distro = "Archcraft"
 
 
+    default_config = json.dumps({
+        "description": f"{username}'s {distro} configuration",
+        "packages": [],
+        "services": [],
+        "gc": {
+            "enabled": False,
+            "clean": []
+        },
+        "configs": {
+            "enabled": False,
+            "include": []
+        },
+        "backup": {
+            "enabled": False,
+            "include": []
+        }
+    }, indent=4)
+
     try:
         with open(config_path, "x") as f:
-            f.write(f"""{{
-    "description": "{username}'s {distro} configuration",
-
-    "packages": [],
-    
-    "services": [],
-
-    "gc": {{
-        "enabled": false,
-        "clean": []
-    }},
-
-    "configs": {{
-        "enabled": false,
-        "include": []
-    }},
-
-    "backup": {{
-        "enabled": false,
-        "include": []
-    }}
-}}""")
+            f.write(default_config)
     except FileExistsError:
         print("\033[93m warning:\033[0m file already exists! (", config_path, ")",
               "\n\n Checking if environment variable is set...", sep="")
@@ -147,6 +148,8 @@ def init():
         print("\n\033[92m Config file created.\n \033[0mPath to config:", config_path, end="\n")
         with open(cache_path(username) / "declan.log", "a") as log:
             print(dt.now(), ": Written config file to ", config_path, sep="", file=log)
+        with open(cache_path(username) / (dt.now().strftime('%Y-%m-%d_%H-%M') + ".json"), "w") as default_log:
+            default_log.write(default_config)
     
 
     env_var = dedent(f"""
@@ -301,13 +304,20 @@ def main():
         #       usage)
         else: print(usage)
     
+
+    username = getuser()
     
     if args.operation == "init":
-        init()
-        exit(0)
+        try:
+            with open(f"/home/{username}/.cache/declan/declan.log", "r") as log:
+                file = log.read()
+                if "Written config file to" in file:
+                    raise ConfigAlreadyInit(getenv("DECLAN_CONFIG_PATH"))
+        except FileNotFoundError:
+            init()
+            exit(0)
     else:
         config_path = Path(getenv("DECLAN_CONFIG_PATH"))
-        username = getuser()
 
 
 
