@@ -39,11 +39,11 @@ parser.add_argument(
     "-h", "--help",
     action="store_true",
 )
-# TODO
-# parser.add_argument(
-#     "-v", "--version",
-#     action="store_true",
-# )
+
+parser.add_argument(
+    "-v", "--version",
+    action="store_true",
+)
 
 parser.add_argument(
     "operation",
@@ -75,6 +75,10 @@ cache_path = Path(f"/home/{user}/.cache/declan")
 cache_path.parent.mkdir(parents=True, exist_ok=True)
 
 
+
+
+version = "\033[3mversion 1.0\033[0m"
+
 usage = """usage: declan <operation> [options]\n
 operations:
     declan {-h | --help}
@@ -88,18 +92,21 @@ operations:
     declan backup"""
 
 
-
-
-def init():
-    print("""\n\033[1m  _____    _______   _____   _          _      _   _
+logo = """\033[1m  _____    _______   _____   _          _      _   _
  |  __ \\  |  ____/  / ____\\ | |        / \\    | \\ | |
  | |  | | | |___   | /      | |       /   \\   |  \\| |
  | |  | | |  ___|  | |      | |      /  ∆  \\  |     |
  | |__| | | |____  | \\____  | |___  /  ___  \\ | |\\  |
- |_____/  \\______\\  \\_____/ \\_____/ \\_/   \\_/ |_| \\_|\033[0m
-        \033[3;90mdeclarative system configuration for 󰣇\033[0m""",
-        end="\n\n")
+ |_____/  \\______\\  \\_____/ \\_____/ \\_/   \\_/ |_| \\_|\033[0m"""
 
+
+
+
+def init():
+    print("\n", logo,
+          "\n       \033[3;90mdeclarative system configuration for 󰣇\033[0m",
+          end="\n\n"
+      )
 
     config_name = ""
     while not config_name.strip():
@@ -226,6 +233,16 @@ def parse_config(path):
 
 
 
+def cache_config(config_name, user):
+    stats = home_path.stat()
+    last_modification = dt.fromtimestamp(stats.st_mtime)
+    date_l_m = last_modification.strftime("%Y-%m-%d_%H-%M")
+
+    copy2(home_path, cache_path / (date_l_m + ".json") )
+
+
+
+
 def relay_rebuild(packages, services):
     cache_path = next(
                       Path(f"/home/{user}/.cache/declan").glob("*.json"),
@@ -239,8 +256,8 @@ def relay_rebuild(packages, services):
 
     if args.operation == "relay":
         if packages is not None:
-            print("\033[1mPackages to install:\033[0m\n", '\n'.join(packages[0]), sep="", end="\n\n")
-            to_remove = list(set(cached_config["packages"]) - set(packages[0]))            
+            print("\033[1mPackages to install:\033[0m\n", '\n'.join(packages), sep="", end="\n\n")
+            to_remove = list(set(cached_config["packages"]) - set(packages))            
 
     elif args.operation == "rebuild":
         print("\033[1mPackages to update:\033[0m")
@@ -271,18 +288,18 @@ def relay_rebuild(packages, services):
             break
 
 
-    # run(["sudo", "-v"])
+    run(["sudo", "-v"])
     
-    # if packages is not None:
-    #     if args.operation == "relay":
-    #         run(
-    #             ["yay", "-S", "--asexplicit",
-    #             "--noconfirm", "--noprogressbar", "--needed", *packages],
-    #         )
-    #     elif args.operation == "rebuild":        
-    #         run(
-    #             ["yay", "-Syu", "--noconfirm", "--noprogressbar", *packages],
-    #         )
+    if packages is not None:
+        if args.operation == "relay":
+            run(
+                ["yay", "-S", "--asexplicit",
+                "--noconfirm", "--noprogressbar", "--needed", *packages],
+            )
+        elif args.operation == "rebuild":        
+            run(
+                ["yay", "-Syu", "--noconfirm", "--noprogressbar", *packages],
+            )
     
     # if services is not None:
     #     print("\nEnabling services...", end="\n")
@@ -290,23 +307,21 @@ def relay_rebuild(packages, services):
     #         ["sudo", "systemctl", "enable", "--now", *services],
     #     )
     #     print("Done.")
-        
-
-
-
-def cache_config(home_path, user):
-    stats = home_path.stat()
-    last_modification = dt.fromtimestamp(stats.st_mtime)
-    date_l_m = last_modification.strftime("%Y-%m-%d_%H-%M")
-
-    copy2(home_path, cache_path / (date_l_m + ".json") )
 
 
 
 
 def main():
     if args.operation is None:
-        # if args.version is True: print(version)
+        if args.version is True:
+            print(
+                logo, " " + version,
+                "\n This program may be freely redistributed under",
+                " the terms of the GNU General Public License, version 2.0",
+                sep="\n", end="\n\n"
+             )
+            exit(0)
+
         if args.help is True: print(usage)
         # if args.gc is True:
         # print("\033[91merror:\033[0m option 'gc' can only be used with operations:\n"
