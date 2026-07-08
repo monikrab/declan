@@ -9,6 +9,7 @@ from textwrap import dedent
 from subprocess import run, DEVNULL, PIPE
 from shutil import copy2, which
 from datetime import datetime as dt
+from re import findall
 
 
 
@@ -22,11 +23,32 @@ class EnvVarExistsError(DeclanError):
  Make sure it matches your configuration file's path!"""
         )
 
-# class ConfigAlreadyInit(DeclanError):
-#     def __init__(self, path):
-#         super().__init__(f"""\033[91merror:\033[0m config already initialized at {path}""")
+class EnvVarNotExistsError(DeclanError):
+    def __init__(self):
+        super().__init__("\033[91merror:\033[0m environment variable unset, retry 'declan init'")
+
+class ConfigAlreadyInitError(DeclanError):
+    def __init__(self, path):
+        super().__init__(f"""\033[91merror:\033[0m config already initialized at {path}""")
 
 
+def safe_getenv(env_var):
+    if getenv(env_var) is None:
+        raise EnvVarNotExistsError()
+    else:
+        return getenv(env_var)
+        
+    
+
+
+# TODO:
+"""
+- Implement functionalities:
+    - clear
+    - gc
+    - rice (with --push)
+    - backup 
+"""
 
 parser = ArgumentParser(
     prog="declan",
@@ -51,19 +73,18 @@ parser.add_argument(
     choices = ["init", "clear", "relay", "rebuild", "gc", "rice", "backup"]
 )
 
-# TODO
-# parser.add_argument(
-#     "--gc",
-#     nargs="?",
-# )
-# parser.add_argument(
-#     "--casc",
-#     nargs="?",
-# )
-# parser.add_argument(
-#     "--push",
-#     nargs="?",
-# )
+parser.add_argument(
+    "--gc", # run gc with rebuild or relay
+    nargs="?",
+)
+parser.add_argument(
+    "--casc", # Try cascading removal of all deselected packages
+    nargs="?",
+)
+parser.add_argument(
+    "--push", # Push config to remote git
+    nargs="?",
+)
 
 args = parser.parse_args()
 
@@ -73,7 +94,6 @@ args = parser.parse_args()
 user = getuser()
 cache_path = Path(f"/home/{user}/.cache/declan")
 cache_path.parent.mkdir(parents=True, exist_ok=True)
-
 
 
 
@@ -103,11 +123,35 @@ logo = """\033[1m  _____    _______   _____   _          _      _   _
 
 
 def init():
-    print("\n", logo,
+    print(logo,
           "\n       \033[3;90mdeclarative system configuration for 󰣇\033[0m",
-          end="\n\n"
+          sep="", end="\n\n"
       )
 
+    
+    cached_config = next(cache_path.glob("*.json"), None)
+
+    if cached_config is not None:
+        read_cached = ""
+
+        while read_cached not in ["y", "n"]:
+            read_cached = str(input(
+                "\n\033[93m warning:\033[0m found pre-existing config file in cache\n Would you like to read it? [Y/n]: "
+            )).lower()
+
+        if read_cached == "y":
+            print()
+            run(["cat", f"{cached_config}"])
+            
+            keep_cached = str(input("\n\n Would you like to keep this config? [Y/n]: ")).lower()
+            if keep_cached == "y": use_cached = True
+        
+        else: print()
+    
+    else:
+        use_cached = False 
+
+        
     config_name = ""
     while not config_name.strip():
         config_name = str(input("\n Enter the name for your configuration file.\n"
@@ -149,9 +193,11 @@ def init():
         }
     }, indent=4)
 
+    
     try:
         with open(config_path, "x") as f:
-            f.write(default_config)
+            if use_cached == True: copy2(cached_config, config_path)
+            else: f.write(default_config)
     except FileExistsError:
         print("\033[93m warning:\033[0m file already exists! (", config_path, ")",
               "\n\n Trying to set config path environment variable...", sep="")
@@ -183,9 +229,9 @@ def init():
             print(" \033[3m(saved at", sh_path, "as $DECLAN_CONFIG_PATH)\033[0m", end="\n")
 
 
-    print("\033[92m\n Initialization finished.\033[0m\n"
-          "\033[91m Please restart your shell before using Declan!\033[0m\n"
-          " For usage instructions, type 'declan --h' or 'man 1 declan' into your shell\n\n"
+        print("\033[92m\n Initialization finished.\033[0m\n"
+              "\033[91m Please restart your shell before using Declan!\033[0m\n"
+              " For usage instructions, type 'declan --h' or 'man 1 declan' into your shell\n\n"
           "\033[95m Enjoy :V\033[0m")        
 
 
@@ -193,8 +239,13 @@ def init():
 
 def parse_config(path):
     with open(path, "r") as f:
-        declan = json.load(f)
-
+        try:
+            declan = json.load(f)
+        except json.JSONDecodeError as error:
+            print(f"\033[91merror:\033[0m invalid JSON formatting: {error.msg.lower()} at line {error.lineno}, character {error.colno}")
+            exit(1)
+    
+    # TODO: Catch JSONDecodeError
     """
     Codes:
         P -> Packages | [1]
@@ -233,31 +284,46 @@ def parse_config(path):
 
 
 
-def cache_config(config_name, user):
-    stats = home_path.stat()
+def cache_config(user, home_config):
+    stats = home_config.stat()
     last_modification = dt.fromtimestamp(stats.st_mtime)
     date_l_m = last_modification.strftime("%Y-%m-%d_%H-%M")
 
-    copy2(home_path, cache_path / (date_l_m + ".json") )
+    try:
+        old_cached_config = next(
+            cache_path.glob("*.json"),
+            None
+        )
+        old_cached_config.unlink()
+    except AttributeError:
+        pass
+    
+    copy2(home_config, cache_path / (date_l_m + ".json"))
 
 
 
 
 def relay_rebuild(packages, services):
-    cache_path = next(
-                      Path(f"/home/{user}/.cache/declan").glob("*.json"),
-                      None
-                  )
-    with open(cache_path, "r") as cached:
-        cached_config = json.load(cached)
-
-
+    
     to_remove = None; to_disable = None
+    cached_config_path = next(
+        cache_path.glob("*.json"),
+        None
+    )
 
+    try:
+        with open(cached_config_path, "r") as path:
+            cached_config = json.load(path)
+        cached = True
+    except TypeError:
+        cached = False
+
+
+    # Packages
     if args.operation == "relay":
         if packages is not None:
             print("\033[1mPackages to install:\033[0m\n", '\n'.join(packages), sep="", end="\n\n")
-            to_remove = list(set(cached_config["packages"]) - set(packages))            
+            if cached == True: to_remove = list(set(cached_config["packages"]) - set(packages))            
 
     elif args.operation == "rebuild":
         print("\033[1mPackages to update:\033[0m")
@@ -273,10 +339,12 @@ def relay_rebuild(packages, services):
     if to_remove:
         print("\033[1mPackages to remove:\033[0m\n", '\n'.join(to_remove), sep="", end="\n\n")
 
-    
+
+    # Services
     if services is not None:
         print("\033[1mServices to enable:\033[0m\n", '\n'.join(services), sep="", end="\n\n")
-        to_disable = list(set(cached_config["services"]) - set(services))
+        if cached == True: to_disable = list(set(cached_config["services"]) - set(services))
+    
     if to_disable:
         print("\033[1mServices to disable:\033[0m\n", '\n'.join(to_disable), sep="", end="\n\n")
 
@@ -287,7 +355,8 @@ def relay_rebuild(packages, services):
             if proceed == "n": return
             break
 
-
+    
+    # Apply changes
     run(["sudo", "-v"])
     
     if packages is not None:
@@ -301,12 +370,13 @@ def relay_rebuild(packages, services):
                 ["yay", "-Syu", "--noconfirm", "--noprogressbar", *packages],
             )
     
-    # if services is not None:
-    #     print("\nEnabling services...", end="\n")
-    #     run(
-    #         ["sudo", "systemctl", "enable", "--now", *services],
-    #     )
-    #     print("Done.")
+    if services is not None:
+        if packages is not None: print()
+        print("Enabling services...", end="\n")
+        run(
+            ["sudo", "systemctl", "enable", "--now", *services],
+        )
+        print("Done.")
 
 
 
@@ -331,21 +401,48 @@ def main():
     
     
     if args.operation == "init":
-        init()
-        # try:
-        #     with open(f"/home/{user}/.cache/declan/declan.log", "r") as log:
-        #         file = log.read()
-        #         if "Written config file to" in file:
-        #             raise ConfigAlreadyInit(getenv("DECLAN_CONFIG_PATH"))
-        # except FileNotFoundError:
-        #     init()
-        #     exit(0)
+        try:
+            with open(cache_path / "declan.log", "r") as log:
+                file = log.read()
+            
+            paths = findall(r"/\S+\.json", file)
+            if paths:
+                if Path(paths[-1]).exists() == False:
+                    raise FileNotFoundError
+
+            if "Written config file to" in file:
+                raise ConfigAlreadyInitError(safe_getenv("DECLAN_CONFIG_PATH"))
+        
+        except FileNotFoundError:
+            init()
+            exit(0)
 
 
-    config_path = Path(getenv("DECLAN_CONFIG_PATH"))
-    # add failure case(s) here
-    features = parse_config(config_path)
+    config_path = Path(safe_getenv("DECLAN_CONFIG_PATH"))
 
+    
+    try:
+	    features = parse_config(config_path)
+    except FileNotFoundError:
+        print("\033[91merror:\033[0m config file not found")
+        
+        cached_config = next(cache_path.glob("*.json"), None)
+        if cached_config is not None:
+            read_cached = ""
+
+            while read_cached not in ["y", "n"]:
+                read_cached = str(input(
+                  "\n\033[93mwarning:\033[0m found pre-existing config file in cache\nWould you like to read it? [Y/n]: "
+                )).lower()
+
+            if read_cached == "y":
+                print()
+                run(["cat", f"{cached_config}"])
+            
+            keep_cached = str(input("\nWould you like to keep this config? [Y/n]: ")).lower()
+            if keep_cached == "y": copy2(cached_config, config_path)
+        
+        exit(1)
 
 
     if args.operation in ["relay", "rebuild"]:
@@ -371,6 +468,9 @@ def main():
                 relay_rebuild(None, features[2])
             else:
                 relay_rebuild(features[1], features[2])
+            
+            cache_config(user, config_path)
+            
         else:
             print("there is nothing to do")
             return
