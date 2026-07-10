@@ -1,4 +1,3 @@
-
 import json
 from argparse import ArgumentParser
 from pathlib import Path
@@ -105,7 +104,7 @@ operations:
     declan {-v | --version}
     declan init
     declan clear
-    declan relay    [--gc] [--casc]
+    declan relay    [--casc]
     declan rebuild  [--gc] [--casc]
     declan gc
     declan rice     [--push]
@@ -256,7 +255,7 @@ def parse_config(path):
     """
 
     enabled_features = ""
-    config_data = [None,  None, None, None, None, None]
+    config_data = [None, [], [], [], [], []]
 
     if declan["packages"]:
         enabled_features += "P"
@@ -284,6 +283,91 @@ def parse_config(path):
 
 
 
+def relay_rebuild(packages, services):
+    to_remove = set(); to_disable = set()
+
+    cached_config_path = next(cache_path.glob("*.json"), None)
+    try:
+        with open(cached_config_path, "r") as path:
+            cached_config = json.load(path)
+        cached = True
+    except TypeError:
+        cached = False
+
+
+    # Packages
+    if args.operation == "relay":
+        to_install = packages - (set(cached_config["packages"]) & packages)
+        if to_install:
+            print("\033[1mPackages to install:\033[0m\n", '\n'.join(to_install), sep="", end="\n\n")
+
+    elif args.operation == "rebuild":
+        print("\033[1mPackages to update:\033[0m")
+
+        pending_updates = run(
+            ["pacman", "-Quq"], stdout=PIPE
+        )
+        run(
+            ["column", "-S", "2"], input=pending_updates.stdout
+        )
+        print()
+
+    if cached == True:
+        to_remove = set(cached_config["packages"]) - packages
+    if to_remove:
+        print("\033[1mPackages to remove:\033[0m\n", '\n'.join(to_remove), sep="", end="\n\n")
+
+
+    # Services
+    to_enable = services - (set(cached_config["services"]) & services)
+    if to_enable:
+        print("\033[1mServices to enable:\033[0m\n", '\n'.join(to_enable), sep="", end="\n\n")
+
+    if cached == True:
+        to_disable = set(cached_config["services"]) - services
+    if to_disable:
+        print("\033[1mServices to disable:\033[0m\n", '\n'.join(to_disable), sep="", end="\n\n")
+
+    
+
+    while 1:
+        proceed = str(input("\033[35m::\033[0m Proceed? [Y/n]: ")).strip().lower(); print()
+        if proceed in ["y", "n"]:
+            if proceed == "n": exit(0)
+            break
+
+    
+    # Apply changes
+    run(["sudo", "-v"])
+
+    if packages:
+        if args.operation == "relay":
+            run(
+                ["yay", "-S", "--asexplicit",
+                "--noconfirm", "--noprogressbar", "--needed", *to_install],
+            )
+        elif args.operation == "rebuild":        
+            run(
+                ["yay", "-Syu", "--noconfirm", "--noprogressbar"],
+            )
+
+    # if to_remove is not None:
+    # ...
+    
+    if services:
+        if packages is not None: print()
+        print("Enabling services...", end="\n")
+        run(
+            ["sudo", "systemctl", "enable", "--now", *services],
+        )
+        print("Done.")
+
+    # if to_disable is not None:
+    # ...
+
+
+
+
 def cache_config(user, home_config):
     stats = home_config.stat()
     last_modification = dt.fromtimestamp(stats.st_mtime)
@@ -299,84 +383,6 @@ def cache_config(user, home_config):
         pass
     
     copy2(home_config, cache_path / (date_l_m + ".json"))
-
-
-
-
-def relay_rebuild(packages, services):
-    
-    to_remove = None; to_disable = None
-    cached_config_path = next(
-        cache_path.glob("*.json"),
-        None
-    )
-
-    try:
-        with open(cached_config_path, "r") as path:
-            cached_config = json.load(path)
-        cached = True
-    except TypeError:
-        cached = False
-
-
-    # Packages
-    if args.operation == "relay":
-        if packages is not None:
-            print("\033[1mPackages to install:\033[0m\n", '\n'.join(packages), sep="", end="\n\n")
-            if cached == True: to_remove = list(set(cached_config["packages"]) - set(packages))            
-
-    elif args.operation == "rebuild":
-        print("\033[1mPackages to update:\033[0m")
-
-        pending_updates = run(
-            ["pacman", "-Quq"], stdout=PIPE
-        )
-        run(
-            ["column", "-S", "2"], input=pending_updates.stdout
-        )
-        print()
-
-    if to_remove:
-        print("\033[1mPackages to remove:\033[0m\n", '\n'.join(to_remove), sep="", end="\n\n")
-
-
-    # Services
-    if services is not None:
-        print("\033[1mServices to enable:\033[0m\n", '\n'.join(services), sep="", end="\n\n")
-        if cached == True: to_disable = list(set(cached_config["services"]) - set(services))
-    
-    if to_disable:
-        print("\033[1mServices to disable:\033[0m\n", '\n'.join(to_disable), sep="", end="\n\n")
-
-
-    while 1:
-        proceed = str(input("\033[35m::\033[0m Proceed? [Y/n]: ")).strip().lower(); print()
-        if proceed in ["y", "n"]:
-            if proceed == "n": return
-            break
-
-    
-    # Apply changes
-    run(["sudo", "-v"])
-    
-    if packages is not None:
-        if args.operation == "relay":
-            run(
-                ["yay", "-S", "--asexplicit",
-                "--noconfirm", "--noprogressbar", "--needed", *packages],
-            )
-        elif args.operation == "rebuild":        
-            run(
-                ["yay", "-Syu", "--noconfirm", "--noprogressbar", *packages],
-            )
-    
-    if services is not None:
-        if packages is not None: print()
-        print("Enabling services...", end="\n")
-        run(
-            ["sudo", "systemctl", "enable", "--now", *services],
-        )
-        print("Done.")
 
 
 
@@ -463,11 +469,11 @@ def main():
         
         if "P" in features[0] or "S" in features[0]:
             if "S" not in features[0]:
-                relay_rebuild(features[1], None)
+                relay_rebuild(set(features[1]), set())
             elif "P" not in features[0]:
-                relay_rebuild(None, features[2])
+                relay_rebuild(set(), set(features[2]))
             else:
-                relay_rebuild(features[1], features[2])
+                relay_rebuild(set(features[1]), set(features[2]))
             
             cache_config(user, config_path)
             
