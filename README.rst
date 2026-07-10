@@ -22,9 +22,13 @@ _____________
     {
         "description": "<user>'s <distro> configuration",
 
-        "packages": [],
+        "packages": [
+            "foo"
+        ],
     
-        "services": [],
+        "services": [
+            "bar"
+        ],
 
         "gc": {
             "enabled": true/false,
@@ -36,12 +40,18 @@ _____________
 
         "config": {
             "enabled": true/false,
-            "include": []
+            "include": [
+                "directory/"
+                "file"
+            ]
         },
 
         "backup": {
             "enabled": true/false,
-            "include": []
+            "include": [
+                "~/directory"
+                "/directory/file"
+            ]
         }
     }
 
@@ -60,7 +70,7 @@ _____
         declan init
         declan clear
 
-        declan relay    [--gc] [--casc]
+        declan relay    [--casc]
         declan rebuild  [--gc] [--casc]
         declan gc
 
