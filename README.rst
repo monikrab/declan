@@ -22,22 +22,33 @@ _____________
     {
         "description": "<user>'s <distro> configuration",
 
-        "packages": [],
+        "packages": [
+            "foo",
+            "bar"
+        ],
     
-        "services": [],
+        "services": [
+            "baz"
+        ],
 
         "gc": {
             "enabled": true/false,
-            "clean": []
+
+            "include": [
+                "~/directory/*"
+                "/directory/file"
+            ]
         },
 
-        "configs": {
+        "config": {
             "enabled": true/false,
-            "include": []
+            
+            "exclude": []
         },
 
         "backup": {
             "enabled": true/false,
+
             "include": []
         }
     }
