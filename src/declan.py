@@ -58,12 +58,12 @@ parser = ArgumentParser(
 
 parser.add_argument(
     "-h", "--help",
-    action="store_true",
+    action="store_true"
 )
 
 parser.add_argument(
     "-v", "--version",
-    action="store_true",
+    action="store_true"
 )
 
 parser.add_argument(
@@ -74,15 +74,16 @@ parser.add_argument(
 
 parser.add_argument(
     "--gc", # run gc with rebuild or relay
-    nargs="?",
+    nargs="?"
 )
 parser.add_argument(
     "--casc", # Try cascading removal of all deselected packages
-    nargs="?",
+    action="store_true"
+    # dest="cascade"
 )
 parser.add_argument(
     "--push", # Push config to remote git
-    nargs="?",
+    nargs="?"
 )
 
 args = parser.parse_args()
@@ -195,7 +196,7 @@ def init():
     
     try:
         with open(config_path, "x") as f:
-            if use_cached == True: copy2(cached_config, config_path)
+            if use_cached: copy2(cached_config, config_path)
             else: f.write(default_config)
     except FileExistsError:
         print("\033[93m warning:\033[0m file already exists! (", config_path, ")",
@@ -283,7 +284,7 @@ def parse_config(path):
 
 
 
-def relay_rebuild(packages, services):
+def relay_rebuild(packages, services):    
     to_remove = set(); to_disable = set()
 
     cached_config_path = next(cache_path.glob("*.json"), None)
@@ -312,7 +313,7 @@ def relay_rebuild(packages, services):
         )
         print()
 
-    if cached == True:
+    if cached:
         to_remove = set(cached_config["packages"]) - packages
     if to_remove:
         print("\033[1mPackages to remove:\033[0m\n", '\n'.join(to_remove), sep="", end="\n\n")
@@ -323,24 +324,28 @@ def relay_rebuild(packages, services):
     if to_enable:
         print("\033[1mServices to enable:\033[0m\n", '\n'.join(to_enable), sep="", end="\n\n")
 
-    if cached == True:
+    if cached:
         to_disable = set(cached_config["services"]) - services
     if to_disable:
         print("\033[1mServices to disable:\033[0m\n", '\n'.join(to_disable), sep="", end="\n\n")
 
-    
+    if any(i for i in (to_install, to_enable, to_remove, to_disable)):
+        while 1:
+            proceed = str(input("\033[35m::\033[0m Proceed? [Y/n]: ")).strip().lower(); print()
+            if proceed in ["y", "n"]:
+                if proceed == "n": exit(0)
+                break
+    else:
+        print(to_remove)
+        print("there is nothing to do")
+        exit(0)
 
-    while 1:
-        proceed = str(input("\033[35m::\033[0m Proceed? [Y/n]: ")).strip().lower(); print()
-        if proceed in ["y", "n"]:
-            if proceed == "n": exit(0)
-            break
 
     
     # Apply changes
     run(["sudo", "-v"])
 
-    if packages:
+    if to_install:
         if args.operation == "relay":
             run(
                 ["yay", "-S", "--asexplicit",
@@ -351,20 +356,31 @@ def relay_rebuild(packages, services):
                 ["yay", "-Syu", "--noconfirm", "--noprogressbar"],
             )
 
-    # if to_remove is not None:
-    # ...
-    
-    if services:
-        if packages is not None: print()
+    if to_remove:
+        if args.casc:
+            for i, pkg in enumerate(to_remove):
+                print("Package no.", i, pkg)
+        else:
+            run(
+                ["yay", "-Rns", "--noconfirm", "--noprogressbar", *to_remove],
+            )
+        
+
+    if to_enable:
+        if to_install: print()
         print("Enabling services...", end="\n")
         run(
-            ["sudo", "systemctl", "enable", "--now", *services],
+            ["sudo", "systemctl", "enable", "--now", *to_enable],
         )
         print("Done.")
 
-    # if to_disable is not None:
-    # ...
-
+    if to_disable:
+        if to_enable: print()
+        print("Disabling services...", end="\n")
+        run(
+            ["sudo", "systemctl", "disable", "--now", *to_disable],
+        )
+        print("Done.")
 
 
 
@@ -389,7 +405,7 @@ def cache_config(user, home_config):
 
 def main():
     if args.operation is None:
-        if args.version is True:
+        if args.version:
             print(
                 logo, " " + version,
                 "\n This program may be freely redistributed under",
@@ -398,7 +414,7 @@ def main():
              )
             exit(0)
 
-        if args.help is True: print(usage)
+        if args.help: print(usage)
         # if args.gc is True:
         # print("\033[91merror:\033[0m option 'gc' can only be used with operations:\n"
         #       "relay\nrebuild\n",
