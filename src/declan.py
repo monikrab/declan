@@ -2,10 +2,10 @@ import json
 from argparse import ArgumentParser
 from pathlib import Path
 from getpass import getuser
-from sys import exit
+from sys import exit, stdin
 from os import environ as env, getenv
 from textwrap import dedent
-from subprocess import run, DEVNULL, PIPE
+from subprocess import run, Popen, DEVNULL, PIPE
 from shutil import copy2, which
 from datetime import datetime as dt
 from re import findall
@@ -73,13 +73,12 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--gc", # run gc with rebuild or relay
-    nargs="?"
+    "--gc",
+    action="store_true"
 )
 parser.add_argument(
-    "--casc", # Try cascading removal of all deselected packages
+    "--casc",
     action="store_true"
-    # dest="cascade"
 )
 parser.add_argument(
     "--push", # Push config to remote git
@@ -181,7 +180,7 @@ def init():
         "services": [],
         "gc": {
             "enabled": False,
-            "clean": []
+            "include": []
         },
         "configs": {
             "enabled": False,
@@ -268,7 +267,7 @@ def parse_config(path):
 
     if declan["gc"]["enabled"]:
         enabled_features += "G"
-        clean = declan["gc"]["clean"]; config_data[3] = clean
+        gc = declan["gc"]["include"]; config_data[3] = gc
 
     if declan["configs"]["enabled"]:
         enabled_features += "C"
@@ -336,7 +335,6 @@ def relay_rebuild(packages, services):
                 if proceed == "n": exit(0)
                 break
     else:
-        print(to_remove)
         print("there is nothing to do")
         exit(0)
 
@@ -358,13 +356,25 @@ def relay_rebuild(packages, services):
 
     if to_remove:
         if args.casc:
-            for i, pkg in enumerate(to_remove):
-                print("Package no.", i, pkg)
-        else:
-            run(
-                ["yay", "-Rns", "--noconfirm", "--noprogressbar", *to_remove],
-            )
+            for pkg in to_remove:
+                p = Popen(
+                    ["sudo", "pacman", "-Rncs", "--noprogressbar", pkg],
+                    stdin=PIPE, # ls pid/fd: 0 -> 'pipe:[123456]'
+                    text=True
+                )
+                char = stdin.read(2)
+                if char:
+                    if char[0] == "n":
+                        _, _ = p.communicate() # close the first command
+                        print("\033[1;3;32m\nRemoving without cascade...\n\n\033[0m")
+                        run(
+                            ["yay", "-Rns", "--noconfirm", "--noprogressbar", pkg],
+                            stdout=DEVNULL
+                        )
+
+                    _, _ = p.communicate() # close remaining command
         
+
 
     if to_enable:
         if to_install: print()
@@ -381,6 +391,14 @@ def relay_rebuild(packages, services):
             ["sudo", "systemctl", "disable", "--now", *to_disable],
         )
         print("Done.")
+
+
+
+
+
+def garbage_collect(paths):
+    print("TODO")
+
 
 
 
@@ -415,13 +433,20 @@ def main():
             exit(0)
 
         if args.help: print(usage)
-        # if args.gc is True:
-        # print("\033[91merror:\033[0m option 'gc' can only be used with operations:\n"
-        #       "relay\nrebuild\n",
-        #       usage)
         else: print(usage)
-    
-    
+
+
+    if args.gc and args.operation != "rebuild":
+        print("\033[91merror:\033[0m option '--gc' can only be used with operation(s): rebuild",
+              usage, sep="\n\n")
+        exit(1)
+
+    if args.casc and args.operation not in ["relay", "rebuild"]:
+        print("\033[91merror:\033[0m option '--casc' can only be used with operation(s): relay, rebuild",
+              usage, sep="\n\n")
+        exit(1)
+
+   
     if args.operation == "init":
         try:
             with open(cache_path / "declan.log", "r") as log:
@@ -496,6 +521,16 @@ def main():
         else:
             print("there is nothing to do")
             return
+
+
+    if args.operation == "gc":
+        if "G" in features[0]:
+            if not features[3]:
+                print("\033[91merror:\033[0m no garbage collection paths specified")
+            else:
+                print("TODO")
+        else:
+            print("\033[91merror:\033[0m garbage collection disabled in config")
 
 
 
