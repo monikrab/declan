@@ -402,7 +402,7 @@ def relay_rebuild(packages, services):
 
 
 def garbage_collect(paths):
-    hard_paths = [Path(path).expanduser() for path in paths] # each path is a PosixPath
+    hard_paths = [Path(path).expanduser() for path in paths]
 
     for path in hard_paths:
         if "*" in str(path):
@@ -434,10 +434,10 @@ def garbage_collect(paths):
                 continue
         
             while 1:
-                run_sudo = input(
+                run_sudo = str(input(
                             "\033[93mwarning:\033[0m certain listed include(s) under root ownership\n" +
                             "Re-run garbage-collection as root? [Y/n]: "
-                          ).strip().lower()
+                          )).strip().lower()
 
                 if run_sudo == "y":
                     run(["sudo", "-E", "python3", "/home/monikrab/dev/declan/src/declan.py", "gc"])
@@ -448,7 +448,55 @@ def garbage_collect(paths):
                     break
                 else:
                     print()
-            
+
+
+
+
+def backup(includes):
+    hard_paths = [Path(path).expanduser() for path in includes]
+
+    location = Path(input("Backup path:\033[92m ")).expanduser()
+    filename = str(input("\033[0mBackup name:\033[92m "))
+    compression_lvl = input("\033[0mCompression level [1-9]:\033[92m ")
+    print("\033[90m")
+
+
+    wc_size = run(
+        ["wc", "-c", *hard_paths],
+        capture_output=True,
+        text=True
+    )
+    for line in wc_size.stdout.splitlines():
+        if "total" in line:
+            size = line.split()[0]
+        elif not wc_size.stdout.splitlines()[1]:
+            size = line.split()[0]
+
+
+    options= { "XZ_OPT": f"-T0 -{compression_lvl}" }
+
+    tar_cf = Popen(
+        ["tar", "cf", "-", *hard_paths],
+        env=options,
+        stdout=PIPE,
+    )
+    progress_bar = Popen(
+        ["pv", "-w", "100", "-s", f"{size}"],
+        stdin=tar_cf.stdout,
+        stdout=PIPE
+    )
+    tar_cf.stdout.close()
+
+    with open(location / (filename + ".tar.xz"), "wb") as backup_file:
+        run(
+            ["xz"],
+            stdin=progress_bar.stdout,
+            stdout=backup_file
+        )
+
+        progress_bar.stdout.close()
+    
+
 
 
 def cache_config(user, home_config):
@@ -559,7 +607,7 @@ def main():
                 run("git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si",
                     shell=True)
             else:
-                exit(1)
+                exit(0)
 
         
         if "P" in features[0] or "S" in features[0]:
@@ -569,7 +617,8 @@ def main():
                 relay_rebuild(set(), set(features[2]))
             else:
                 relay_rebuild(set(features[1]), set(features[2]))
-            
+
+            if args.gc: garbage_collect(features[3])
             cache_config(user, config_path)
             
         else:
@@ -587,10 +636,31 @@ def main():
             print("\033[91merror:\033[0m garbage collection disabled in config")
 
 
+    if args.operation == "backup":
+        if which("pv") is None:
+            install_pv = str(input(
+                                "\033[91m error:\033[0m pv (backup progress tracker) is not installed\n\n"
+                                " Would you like to install it now? [Y/n]: "
+                            ))
+            if install_pv.lower() == "y":
+                run(["sudo", "pacman", "-S", "pv"])
+            else:
+                exit(0)
+            
+            
+        if "B" in features[0]:
+            if not features[5]:
+                print("\033[91merror:\033[0m no paths to back up")
+            else:
+                backup(features[5])
+        else:
+            print("\033[91merror:\033[0m backups disabled in config")
+
+
 
 try:
     main()
 except DeclanError as error:
     print(error)
 except (KeyboardInterrupt, EOFError):
-    print("\n\n\033[91m error:\033[0m execution interrupted by user!")
+    print("\n\n\033[91merror:\033[0m execution interrupted by user!")
