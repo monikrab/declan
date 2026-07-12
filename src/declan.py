@@ -1,3 +1,4 @@
+
 import json
 from argparse import ArgumentParser
 from pathlib import Path
@@ -6,10 +7,11 @@ from sys import exit, stdin
 from os import environ as env, getenv
 from textwrap import dedent
 from subprocess import run, Popen, DEVNULL, PIPE
-from shutil import copy2, which
+from shutil import copy2, which, rmtree
 from datetime import datetime as dt
 from re import findall
-
+from glob import glob
+from os import geteuid
 
 
 class DeclanError(Exception):
@@ -81,8 +83,8 @@ parser.add_argument(
     action="store_true"
 )
 parser.add_argument(
-    "--push", # Push config to remote git
-    nargs="?"
+    "--push",
+    action="store_true"
 )
 
 args = parser.parse_args()
@@ -310,6 +312,9 @@ def relay_rebuild(packages, services):
         run(
             ["column", "-S", "2"], input=pending_updates.stdout
         )
+
+        if pending_updates.stdout: to_install = "updates"
+        
         print()
 
     if cached:
@@ -397,9 +402,53 @@ def relay_rebuild(packages, services):
 
 
 def garbage_collect(paths):
-    print("TODO")
+    hard_paths = [Path(path).expanduser() for path in paths] # each path is a PosixPath
+
+    for path in hard_paths:
+        if "*" in str(path):
+            glob_paths = glob(str(path))
+            
+            hard_paths.remove(path)
+
+            for glob_path in glob_paths:
+                hard_paths.append(glob_path)
+
+    rm_paths = [Path(hard_path) for hard_path in hard_paths]
 
 
+    ask_sudo = True
+
+    for path in rm_paths:
+        try:
+            if path.is_dir():
+                rmtree(path)
+            else:
+                path.unlink()
+
+        except FileNotFoundError as e:
+            if geteuid() != 0:
+                print(f"\033[93mwarning:\033[0m file/directory not found: {e.filename}, skipping...\n")
+
+        except PermissionError:
+            if not ask_sudo:
+                continue
+        
+            while 1:
+                run_sudo = input(
+                            "\033[93mwarning:\033[0m certain listed include(s) under root ownership\n" +
+                            "Re-run garbage-collection as root? [Y/n]: "
+                          ).strip().lower()
+
+                if run_sudo == "y":
+                    run(["sudo", "-E", "python3", "/home/monikrab/dev/declan/src/declan.py", "gc"])
+                    exit(0)
+
+                elif run_sudo == "n":
+                    ask_sudo = False
+                    break
+                else:
+                    print()
+            
 
 
 def cache_config(user, home_config):
@@ -446,7 +495,12 @@ def main():
               usage, sep="\n\n")
         exit(1)
 
-   
+    if args.push and args.operation != "rice":
+        print("\033[91merror:\033[0m option '--push' can only be used with operation(s): rice",
+              usage, sep="\n\n")
+        exit(1)
+
+
     if args.operation == "init":
         try:
             with open(cache_path / "declan.log", "r") as log:
@@ -528,7 +582,7 @@ def main():
             if not features[3]:
                 print("\033[91merror:\033[0m no garbage collection paths specified")
             else:
-                print("TODO")
+                garbage_collect(features[3])
         else:
             print("\033[91merror:\033[0m garbage collection disabled in config")
 
