@@ -92,11 +92,11 @@ args = parser.parse_args()
 
 
 
-user = getuser()
+user = getuser(); su = False
+if user == "root": su = True
+
 cache_path = Path(f"/home/{user}/.cache/declan")
 cache_path.parent.mkdir(parents=True, exist_ok=True)
-
-
 
 version = "\033[3mversion 1.0\033[0m"
 
@@ -277,7 +277,8 @@ def parse_config(path):
 
     if declan["backup"]["enabled"]:
         enabled_features += "B"
-        backup = declan["backup"]["include"]; config_data[5] = backup
+        backup = declan["backup"]["include"]; path = declan["backup"]["path"]
+        config_data[5] = [backup, path]
 
     config_data[0] = enabled_features
     return config_data
@@ -435,7 +436,7 @@ def garbage_collect(paths):
         
             while 1:
                 run_sudo = str(input(
-                            "\033[93mwarning:\033[0m certain listed include(s) under root ownership\n" +
+                            "\033[93mwarning:\033[0m file/directory under root ownership\n" +
                             "Re-run garbage-collection as root? [Y/n]: "
                           )).strip().lower()
 
@@ -451,18 +452,37 @@ def garbage_collect(paths):
 
 
 
+# FIX:
+# sudo mode: hangs but completes backup
+# normal mode: hangs and doesn't complete
+def backup(includes, location, cfg_env_var):
+    try:
+        orig_user = safe_getenv("ORIG_USER")
+    except EnvVarNotExistsError:
+        pass
+    
+    if not su:
+        nolead_hard_paths = [
+            str(Path(path).expanduser())[1:] # remove leading slash
+            for path
+            in includes
+        ]
+    else:
+        nolead_hard_paths = [
+            f"/home/{orig_user}" + path[1:] # remove leading tilde
+            for path
+            in includes
+        ]
 
-def backup(includes):
-    hard_paths = [Path(path).expanduser() for path in includes]
+    if not su: location = Path(location).expanduser()
+    else: location = f"/home/{orig_user}" + location[1:]
 
-    location = Path(input("Backup path:\033[92m ")).expanduser()
-    filename = str(input("\033[0mBackup name:\033[92m "))
     compression_lvl = input("\033[0mCompression level [1-9]:\033[92m ")
     print("\033[90m")
 
 
     wc_size = run(
-        ["wc", "-c", *hard_paths],
+        ["wc", "-c", *nolead_hard_paths],
         capture_output=True,
         text=True
     )
@@ -476,24 +496,56 @@ def backup(includes):
     options= { "XZ_OPT": f"-T0 -{compression_lvl}" }
 
     tar_cf = Popen(
-        ["tar", "cf", "-", *hard_paths],
+        ["tar", "cf", "-", "-C", "/", *nolead_hard_paths],
         env=options,
         stdout=PIPE,
+        stderr=PIPE
     )
+
+    ask_sudo = True
+
+    for line in tar_cf.stderr:
+        if b"Permission denied" in line:
+            if not ask_sudo:
+                continue
+
+            while 1:
+                run_sudo = str(input(
+                            "\033[93mwarning:\033[0m file/directory under root ownership\n" +
+                            "Retry backup as root? [Y/n]: "
+                          )).strip().lower()
+
+                if run_sudo == "y":
+                    tar_cf.kill()
+                    print()
+                    run(["sudo", "env", f"XZ_OPT=-T0 -{compression_lvl}",
+                        f"DECLAN_CONFIG_PATH={cfg_env_var}", f"ORIG_USER={user}",
+                        "python3", "/home/monikrab/dev/declan/src/declan.py", "backup"])
+                    exit(0)
+                
+                elif run_sudo == "n":
+                    ask_sudo = False
+                    break
+                else:
+                    print()
+        # else:
+        #     break
+
     progress_bar = Popen(
-        ["pv", "-w", "100", "-s", f"{size}"],
+        ["pv", "-w", "80", "-s", f"{size}"],
         stdin=tar_cf.stdout,
-        stdout=PIPE
+        stdout=PIPE,
+        stderr=None
     )
     tar_cf.stdout.close()
 
-    with open(location / (filename + ".tar.xz"), "wb") as backup_file:
-        run(
-            ["xz"],
+
+    with open(str(location) + ".tar.xz", "wb") as backup_file:
+        xz_out = Popen(
+            ["xz"], # actual backup logic lmfao
             stdin=progress_bar.stdout,
             stdout=backup_file
         )
-
         progress_bar.stdout.close()
     
 
@@ -571,7 +623,7 @@ def main():
 
     
     try:
-	    features = parse_config(config_path)
+        features = parse_config(config_path)
     except FileNotFoundError:
         print("\033[91merror:\033[0m config file not found")
         
@@ -652,7 +704,7 @@ def main():
             if not features[5]:
                 print("\033[91merror:\033[0m no paths to back up")
             else:
-                backup(features[5])
+                backup(features[5][0], features[5][1], config_path)
         else:
             print("\033[91merror:\033[0m backups disabled in config")
 
