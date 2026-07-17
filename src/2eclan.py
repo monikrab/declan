@@ -1,4 +1,3 @@
-
 import json
 from argparse import ArgumentParser
 from pathlib import Path
@@ -11,10 +10,17 @@ from shutil import copy2, which, rmtree
 from datetime import datetime as dt
 from re import findall
 from glob import glob
-from os import geteuid
-from itertools import chain
 from os.path import expanduser
 
+
+"""
+Exit Codes:
+    Success       | (0)
+    PythonError   | (1)
+    DeclanError   | (2)
+    UncaughtError | (3)
+    EarlyExit     | (4)
+"""
 
 class DeclanError(Exception):
     pass
@@ -40,18 +46,9 @@ def safe_getenv(env_var):
         raise EnvVarNotExistsError()
     else:
         return getenv(env_var)
+
         
     
-
-
-# TODO:
-"""
-- Implement functionalities:
-    - clear
-    - gc
-    - rice (with --push)
-    - backup 
-"""
 
 parser = ArgumentParser(
     prog="declan",
@@ -64,7 +61,6 @@ parser.add_argument(
     "-h", "--help",
     action="store_true"
 )
-
 parser.add_argument(
     "-v", "--version",
     action="store_true"
@@ -84,18 +80,13 @@ parser.add_argument(
     "--casc",
     action="store_true"
 )
-parser.add_argument(
-    "--push",
-    action="store_true"
-)
 
 args = parser.parse_args()
 
 
 
 
-user = getuser(); su = False
-if user == "root": su = True
+user = getuser()
 
 cache_path = Path(f"/home/{user}/.cache/declan")
 cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -111,7 +102,7 @@ operations:
     declan relay    [--casc]
     declan rebuild  [--gc] [--casc]
     declan gc
-    declan rice     [--push]
+    declan rice
     declan backup"""
 
 
@@ -128,8 +119,8 @@ logo = """\033[1m  _____    _______   _____   _          _      _   _
 def init():
     print(logo,
           "\n       \033[3;90mdeclarative system configuration for 󰣇\033[0m",
-          sep="", end="\n\n"
-      )
+          sep="",
+          end="\n\n")
 
     
     cached_config = next(cache_path.glob("*.json"), None)
@@ -148,9 +139,7 @@ def init():
             
             keep_cached = str(input("\n\n Would you like to keep this config? [Y/n]: ")).lower()
             if keep_cached == "y": use_cached = True
-        
         else: print()
-    
     else:
         use_cached = False 
 
@@ -175,7 +164,7 @@ def init():
     elif "ID=archcraft" in release:   distro = "Archcraft"
     else:
         print("\033[91m error:\033[0m unsupported operating system")
-        exit(1)
+        exit(3)
 
 
     default_config = json.dumps({
@@ -186,12 +175,14 @@ def init():
             "enabled": False,
             "include": []
         },
-        "configs": {
+        "rice": {
             "enabled": False,
+            "remote": "",
             "include": []
         },
         "backup": {
             "enabled": False,
+            "path": "",
             "include": []
         }
     }, indent=4)
@@ -241,49 +232,48 @@ def init():
 
 
 def parse_config(path):
-    with open(path, "r") as f:
+    with open(path, "r") as p:
         try:
-            declan = json.load(f)
-        except json.JSONDecodeError as error:
-            print(f"\033[91merror:\033[0m invalid JSON formatting: {error.msg.lower()} at line {error.lineno}, character {error.colno}")
+            config = json.load(p)
+        except json.JSONDecodeError as e:
+            print(f"\033[91merror:\033[0m invalid JSON formatting: {e.msg.lower()} at line {e.lineno}, character {e.colno}")
             exit(1)
-    
-    # TODO: Catch JSONDecodeError
+
     """
-    Codes:
+    Data Codes:
         P -> Packages | [1]
         S -> Services | [2]
         G -> Garbage  | [3]
-        C -> Configs  | [4]
+        R -> Rice     | [4]
         B -> Backup   | [5]
     """
+    features = ""
+    cfg_data = [None, [], [], [], [], []]
 
-    enabled_features = ""
-    config_data = [None, [], [], [], [], []]
+    if config["packages"]:
+        features += "P"
+        packages = config["packages"]; cfg_data[1] = packages
 
-    if declan["packages"]:
-        enabled_features += "P"
-        packages = declan["packages"]; config_data[1] = packages
+    if config["services"]:
+        features += "S"
+        services = config["services"]; cfg_data[2] = services
 
-    if declan["services"]:
-        enabled_features += "S"
-        services = declan["services"]; config_data[2] = services
+    if config["gc"]["enabled"]:
+        features += "G"
+        gc = config["gc"]["include"]; cfg_data[3] = gc
 
-    if declan["gc"]["enabled"]:
-        enabled_features += "G"
-        gc = declan["gc"]["include"]; config_data[3] = gc
+    if config["rice"]["enabled"]:
+        features += "R"
+        rice = config["rice"]["include"]; remote = config["rice"]["remote"]
+        cfg_data[4] = [rice, remote]
 
-    if declan["configs"]["enabled"]:
-        enabled_features += "C"
-        configs = declan["configs"]["include"]; config_data[4] = configs
+    if config["backup"]["enabled"]:
+        features += "B"
+        backup = config["backup"]["include"]; path = config["backup"]["path"]
+        cfg_data[5] = [backup, path]
 
-    if declan["backup"]["enabled"]:
-        enabled_features += "B"
-        backup = declan["backup"]["include"]; path = declan["backup"]["path"]
-        config_data[5] = [backup, path]
-
-    config_data[0] = enabled_features
-    return config_data
+    cfg_data[0] = features
+    return cfg_data
 
 
 
@@ -300,7 +290,6 @@ def relay_rebuild(packages, services):
         cached = False
 
 
-    # Packages
     if args.operation == "relay":
         to_install = packages - (set(cached_config["packages"]) & packages)
         if to_install:
@@ -326,7 +315,6 @@ def relay_rebuild(packages, services):
         print("\033[1mPackages to remove:\033[0m\n", '\n'.join(to_remove), sep="", end="\n\n")
 
 
-    # Services
     to_enable = services - (set(cached_config["services"]) & services)
     if to_enable:
         print("\033[1mServices to enable:\033[0m\n", '\n'.join(to_enable), sep="", end="\n\n")
@@ -336,19 +324,18 @@ def relay_rebuild(packages, services):
     if to_disable:
         print("\033[1mServices to disable:\033[0m\n", '\n'.join(to_disable), sep="", end="\n\n")
 
+
     if any(i for i in (to_install, to_enable, to_remove, to_disable)):
         while 1:
             proceed = str(input("\033[35m::\033[0m Proceed? [Y/n]: ")).strip().lower(); print()
             if proceed in ["y", "n"]:
-                if proceed == "n": exit(0)
+                if proceed == "n": exit(4)
                 break
     else:
         print("there is nothing to do")
-        exit(0)
+        exit(4)
 
 
-    
-    # Apply changes
     run(["sudo", "-v"])
 
     if to_install:
@@ -381,7 +368,6 @@ def relay_rebuild(packages, services):
                         )
 
                     _, _ = p.communicate() # close remaining command
-        
 
 
     if to_enable:
@@ -403,135 +389,43 @@ def relay_rebuild(packages, services):
 
 
 
-def garbage_collect(raw_paths):
+def garbage_collect(paths):
     full_paths = []
-    for path in expanduser(raw_paths):
-        print(path)
-        # full_paths.append(path)
+    for p in paths:
+        hard_path = expanduser(p)
+        if "*" in hard_path:
+            globbed_paths = glob(hard_path)
+            for g in globbed_paths:
+                full_paths.append(g)
+        else:
+            full_paths.append(hard_path)
+            
 
-    # print(full_paths)
-
-    # for path in full_paths:
-    #     run(["sudo", "rm", "-rf", *full_paths])    
+    for path in full_paths:
+        run(["sudo", "rm", "-rfv", *full_paths])
 
 
 
 
-# XXX delete when ready:
-# sudo mode: hangs but completes backup
-# normal mode: hangs and doesn't complete
-# def backup(includes, location, cfg_env_var):
-#     try:
-#         orig_user = safe_getenv("ORIG_USER")
-#     except EnvVarNotExistsError:
-#         pass
+def rice(paths, remote):
+    print("TODO")
+
+
+
+
+def backup(paths, location):
+    includes = []
+    location = expanduser(location)
+    for p in paths:
+        includes.append(expanduser(p))
+
     
-#     if not su:
-#         hard_paths = [
-#             str(Path(path).expanduser()) # remove leading slash
-#             for path
-#             in includes
-#         ]
-#     else:
-#         hard_paths = [
-#             f"/home/{orig_user}" + path[1:] # remove leading tilde
-#             for path
-#             in includes
-#         ]
-
-#     if not su: location = Path(location).expanduser()
-#     else: location = f"/home/{orig_user}" + location[1:]
-
-#     compression_lvl = input("\033[0mCompression level [1-9]:\033[92m ").strip()
-#     print("\033[90m")
-
-#     wc_size = run(
-#         ["wc", "-c", *hard_paths],
-#         capture_output=True,
-#         text=True
-#     )
-#     for line in wc_size.stdout.splitlines():
-#         if "total" in line:
-#             size = line.split()[0]
-#         elif len(wc_size.stdout.splitlines()) < 2:
-#             size = line.split()[0]
-
-
-#     options = { "XZ_OPT": f"-T0 -{compression_lvl}" }
-#     relative_paths = [path[1:] for path in hard_paths]
-
-#     tar_cf = Popen(
-#         ["tar", "cf", "-", "-C", "/", *relative_paths],
-#         env=options,
-#         stdout=PIPE
-#     )
-
-#     print(stderr)
-
-#     # ask_sudo = True
-
-#     # for line in tar_cf.stderr:
-#     #     print("a")
-#     #     if b"Permission denied" in line:
-#     #         if not ask_sudo:
-#     #             continue
-
-#     #         while 1:
-#     #             run_sudo = str(input(
-#     #                         "\033[93mwarning:\033[0m file/directory under root ownership\n" +
-#     #                         "Retry backup as root? [Y/n]: "
-#     #                       )).strip().lower()
-
-#     #             if run_sudo == "y":
-#     #                 tar_cf.kill()
-#     #                 # print("killed tar, launching as sudo")
-#     #                 run(["sudo", "env", f"XZ_OPT=-T0 -{compression_lvl}",
-#     #                     f"DECLAN_CONFIG_PATH={cfg_env_var}", f"ORIG_USER={user}",
-#     #                     "python3", "/home/monikrab/dev/declan/src/declan.py", "backup"])
-#     #                 exit(0)
-                
-#     #             elif run_sudo == "n":
-#     #                 ask_sudo = False
-#     #                 break
-#     #             else:
-#     #                 print()
-
-#     progress_bar = Popen(
-#         ["pv", "-w", "80", "-s", f"{size}"],
-#         stdin=tar_cf.stdout,
-#         stdout=PIPE,
-#         # stderr=None
-#     )
-
-#     with open(str(location) + ".tar.xz", "wb") as backup_file:
-#         xz_out = Popen(
-#             ["xz"],
-#             stdin=progress_bar.stdout,
-#             stdout=backup_file
-#         )
-
-#     tar_cf.stdout.close()
-#     progress_bar.stdout.close()
-#     xz_out.wait()
-
-
-
-
-# TODO: sudo -v by default
-def backup(includes, location, env_var):
-    hard_paths = [
-        str(Path(path).expanduser()) # remove leading slash
-        for path
-        in includes
-    ]
-
-    location = Path(location).expanduser()
-
-    compression_lvl = input("\033[0mCompression level [1-9]:\033[92m ").strip()
+    cmp_lvl = input("\033[0mCompression level [1-9]:\033[92m ").strip()
     print("\033[90m")
 
+
     wc_size = run(
-        ["wc", "-c", *hard_paths],
+        ["wc", "-c", *includes],
         capture_output=True,
         text=True
     )
@@ -540,19 +434,21 @@ def backup(includes, location, env_var):
             size = line.split()[0]
         elif len(wc_size.stdout.splitlines()) < 2:
             size = line.split()[0]
+    print("Total size to back up:", round(int(size)/1e9, 2), "GB")
 
 
-    options = { "XZ_OPT": f"-T0 -{compression_lvl}" }
-    relative_paths = [path[1:] for path in hard_paths]
-    
+    includes = [i[1:] for i in includes] # remove leading slash
+    options = { "XZ_OPT": f"-T0 -{cmp_lvl}" }
     tar = run([
-            "tar", "-I", f"pv -f -s {size} | xz",
+            "sudo", "tar", "-I", f"pv -u shaded -s {size} -w 97 | xz",
             "-cf", location,
-            "-C", "/", *relative_paths,
+            "-C", "/", *includes,
         ],
         env=options,
         text=True,
     )
+
+    print("\n\033[92mBackup complete!\033[0m")
 
 
 
@@ -562,6 +458,7 @@ def cache_config(user, home_config):
     last_modification = dt.fromtimestamp(stats.st_mtime)
     date_l_m = last_modification.strftime("%Y-%m-%d_%H-%M")
 
+
     try:
         old_cached_config = next(
             cache_path.glob("*.json"),
@@ -570,6 +467,7 @@ def cache_config(user, home_config):
         old_cached_config.unlink()
     except AttributeError:
         pass
+
     
     copy2(home_config, cache_path / (date_l_m + ".json"))
 
@@ -594,17 +492,12 @@ def main():
     if args.gc and args.operation != "rebuild":
         print("\033[91merror:\033[0m option '--gc' can only be used with operation(s): rebuild",
               usage, sep="\n\n")
-        exit(1)
+        exit(3)
 
     if args.casc and args.operation not in ["relay", "rebuild"]:
         print("\033[91merror:\033[0m option '--casc' can only be used with operation(s): relay, rebuild",
               usage, sep="\n\n")
-        exit(1)
-
-    if args.push and args.operation != "rice":
-        print("\033[91merror:\033[0m option '--push' can only be used with operation(s): rice",
-              usage, sep="\n\n")
-        exit(1)
+        exit(3)
 
 
     if args.operation == "init":
@@ -625,9 +518,7 @@ def main():
             exit(0)
 
 
-    config_path = Path(safe_getenv("DECLAN_CONFIG_PATH"))
-
-    
+    config_path = Path(safe_getenv("DECLAN_CONFIG_PATH"))    
     try:
         features = parse_config(config_path)
     except FileNotFoundError:
@@ -648,7 +539,7 @@ def main():
             
             keep_cached = str(input("\nWould you like to keep this config? [Y/n]: ")).lower()
             if keep_cached == "y": copy2(cached_config, config_path)
-        
+
         exit(1)
 
 
@@ -665,9 +556,8 @@ def main():
                 run("git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si",
                     shell=True)
             else:
-                exit(0)
+                exit(4)
 
-        
         if "P" in features[0] or "S" in features[0]:
             if "S" not in features[0]:
                 relay_rebuild(set(features[1]), set())
@@ -694,25 +584,48 @@ def main():
             print("\033[91merror:\033[0m garbage collection disabled in config")
 
 
+    if args.operation == "rice":
+        if which("gh") is None:
+            install_gh = str(input(
+                                "\033[91merror:\033[0m the GitHub CLI is not installed\n"
+                                "Without it, `declan rice` is unavailable\n\n"
+                                "Would you like to install it now? [Y/n]: "
+                            ))
+            if install_gh.lower() == "y":
+                run(["sudo", "pacman", "-S", "github-cli"])
+            else:
+                exit(4)
+                
+        if "R" in features[0]:
+            if not features[4][0]:
+                print("\033[91merror:\033[0m no contents of .config specified")
+            else:
+                rice(features[4][0], features[4][1])
+        else:
+            print("\033[91merror:\033[0m .config management disabled in config file")
+
+
     if args.operation == "backup":
         if which("pv") is None:
             install_pv = str(input(
-                                "\033[91m error:\033[0m pv (backup progress tracker) is not installed\n\n"
-                                " Would you like to install it now? [Y/n]: "
+                                "\033[91merror:\033[0m pv (backup progress tracker) is not installed\n"
+                                "Without it, `declan backup` is unavailable\n\n"
+                                "Would you like to install it now? [Y/n]: "
                             ))
             if install_pv.lower() == "y":
                 run(["sudo", "pacman", "-S", "pv"])
             else:
-                exit(0)
+                exit(4)
             
             
         if "B" in features[0]:
             if not features[5]:
                 print("\033[91merror:\033[0m no paths to back up")
             else:
-                backup(features[5][0], features[5][1], config_path)
+                backup(features[5][0], features[5][1])
         else:
             print("\033[91merror:\033[0m backups disabled in config")
+
 
 
 
