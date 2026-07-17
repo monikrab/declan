@@ -71,5 +71,5 @@ _____
         declan rebuild  [--gc] [--casc]
         declan gc
 
-        declan rice     [--push]
+        declan rice
         declan backup
