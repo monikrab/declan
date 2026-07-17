@@ -23,34 +23,31 @@ _____________
         "description": "<user>'s <distro> configuration",
 
         "packages": [
-            "foo"
         ],
     
         "services": [
-            "bar"
         ],
 
         "gc": {
-            "enabled": true/false,
+            "enabled": true,
             "include": [
-                "~/directory/*"
-                "/directory/file"
+                "~/*"
             ]
         },
 
-        "config": {
-            "enabled": true/false,
+        "rice": {
+            "enabled": true
+            "remote": "user/repo"
             "include": [
-                "directory/"
-                "file"
+                "program/"
             ]
         },
 
         "backup": {
-            "enabled": true/false,
+            "enabled": true,
+            "location": "~/",
             "include": [
-                "~/directory"
-                "/directory/file"
+                "~/"
             ]
         }
     }
