@@ -10,7 +10,7 @@ https://github.com/monikrab/declan
 """
 
 
-import json                                       # init, parse_config, relay_rebuild 
+import json                                       # init, parse_config, relay_rebuild
 from argparse import ArgumentParser               # global
 from getpass import getuser                       # global
 from pathlib import Path                          # global, init, clear, main
@@ -133,7 +133,7 @@ def init():
           sep="",
           end="\n\n")
 
-    
+
     cached_cfg = next(cache_path.glob("*.json"), None) # there should only be one
 
     if cached_cfg is not None:
@@ -154,7 +154,7 @@ def init():
 
         else: print()
 
-    else: use_cached = False 
+    else: use_cached = False
 
 
 
@@ -165,7 +165,7 @@ def init():
             " Do not add a file extension.\n\n"
             " Name: "
         ))
-    
+
     cfg_path = Path(f"/home/{user}/{cfg_name}.json")
 
 
@@ -238,7 +238,7 @@ def init():
 
 
     sh = env.get("SHELL")
-    if   sh == "/usr/bin/fish": sh_cfg_path = ".config/fish/config.fish" 
+    if   sh == "/usr/bin/fish": sh_cfg_path = ".config/fish/config.fish"
     elif sh == "/usr/bin/zsh":  sh_cfg_path = ".zshrc"
     elif sh == "/usr/bin/bash": sh_cfg_path = ".bashrc"
 
@@ -255,17 +255,19 @@ def init():
 
 
 
-    print("\033[92m\n Initialization finished.\033[0m\n"
-          "\033[91m Please restart your shell before using Declan!\033[0m\n"
-          " For usage instructions, type 'declan --h' or 'man 1 declan' into your shell\n\n"
-      "\033[95m Enjoy :V\033[0m")        
+    print(
+        "\033[92m\n Initialization finished.\033[0m\n"
+        "\033[91m Please restart your shell before using Declan!\033[0m\n"
+        " For usage instructions, type 'declan --h' or 'man 1 declan' into your shell\n\n"
+        "\033[95m Enjoy :V\033[0m"
+    )
 
 
 
 
 def clear(cfg_path):
     print(
-        "\033[93mwarning:\033[0m this operation nukes declan's state, possibly including:\n",
+        "\033[93mwarning:\033[0m this operation nukes declan's data, possibly including:\n",
         " - Your configuration file\n",
         " - Cached files\n",
         " - Declan's environment variable\n",
@@ -287,7 +289,7 @@ def clear(cfg_path):
 
         if input("\n\033[91mClear environment variable?\033[0m ($DECLAN_CONFIG_PATH) [Y/n]: ").strip().lower() == "y":
             sh = env.get("SHELL")
-            if   sh == "/usr/bin/fish": sh_cfg_path = ".config/fish/config.fish" 
+            if   sh == "/usr/bin/fish": sh_cfg_path = ".config/fish/config.fish"
             elif sh == "/usr/bin/zsh":  sh_cfg_path = ".zshrc"
             elif sh == "/usr/bin/bash": sh_cfg_path = ".bashrc"
 
@@ -450,7 +452,7 @@ def relay_rebuild(packages, services):
                 ["yay", "-S", "--asexplicit",
                 "--noconfirm", "--noprogressbar", "--needed", *to_install],
             )
-        elif args.operation == "rebuild":        
+        elif args.operation == "rebuild":
             run(
                 ["yay", "-Syu", "--noconfirm", "--noprogressbar"],
             )
@@ -464,7 +466,7 @@ def relay_rebuild(packages, services):
                     stdin=PIPE, # pacman reads from python's pipe
                     text=True
                 )
-                
+
                 char = stdin.read(2) # declan reads from global stdin
 
                 if char:
@@ -494,7 +496,7 @@ def relay_rebuild(packages, services):
         if to_enable: print()
 
         print("Disabling services...", end="\n")
-    
+
         run(
             ["sudo", "systemctl", "disable", "--now", *to_disable],
         )
@@ -516,7 +518,7 @@ def garbage_collect(paths):
 
         else:
             full_paths.append(hard_path)
-            
+
 
     for path in full_paths:
         run(["sudo", "rm", "-rf", *full_paths]) # -rfv to debug
@@ -541,7 +543,7 @@ def rice(paths, remote):
         exit(3)
     else:
         pass
-        
+
 
     git_status = run(
         ["git", "status"],
@@ -552,14 +554,14 @@ def rice(paths, remote):
     if "On branch" not in git_status.stdout:
         run(["git", "init"], cwd=dot_config)
 
-    
+
     git_remotes = run(
         ["git", "remote", "-v"],
         capture_output=True,
         cwd=dot_config,
         text=True
     )
-    if remote not in git_remotes.stdout:        
+    if remote not in git_remotes.stdout:
         run(["git", "remote", "add", "origin", remote])
 
 
@@ -595,13 +597,13 @@ def rice(paths, remote):
 
 def backup(paths, location):
     location = expanduser(location) # get hard path
-    
+
     files = []
     for p in paths:
         files.append(expanduser(p))
 
 
-    # https://wiki.gentoo.org/wiki/Xz-utils#Usage 
+    # https://wiki.gentoo.org/wiki/Xz-utils#Usage
     cmp_lvl = input("\033[0mCompression level [1-9]:\033[92m ").strip()
     print("\033[90m")
 
@@ -651,7 +653,7 @@ def backup(paths, location):
 
 def cache_config(user, home_cfg_path):
     stats = home_cfg_path.stat() # get the config in /home's metadata
-    
+
     last_mod = dt.fromtimestamp(stats.st_mtime) # last modification time
     date_last_mod = last_modification.strftime("%Y-%m-%d_%H-%M")
 
@@ -659,11 +661,11 @@ def cache_config(user, home_cfg_path):
     try:
         old_cached_cfg = next(cache_path.glob("*.json"), None)
         old_cached_cfg.unlink()
-        
+
     except AttributeError: # if .unlink() is applied to None
         pass
 
-    
+
     copy2(home_config, cache_path / (date_l_m + ".json"))
     # e.g. 2026-07-12_14-41.json
 
@@ -741,7 +743,7 @@ def main():
 
     except FileNotFoundError:
         print("\033[91merror:\033[0m config file not found")
-        
+
         cached_config = next(cache_path.glob("*.json"), None)
 
         if cached_config is not None:
@@ -777,7 +779,7 @@ def main():
                 "Without it, `relay` and `rebuild` are unavailable:\n\n"
                 "Would you like to install it now? [Y/n]: "
             )).strip().lower()
-            
+
             if get_yay_yn == "y":
                 run("yay -Y --gendb && yay -Y --devel --save", shell=True)
                 run("sudo pacman -S --needed git base-devel", shell=True)
@@ -807,7 +809,7 @@ def main():
 
             # always cache the config after relay/rebuild
             cache_config(user, config_path)
-            
+
         else:
             print("there is nothing to do")
             exit(4)

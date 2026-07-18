@@ -1,38 +1,113 @@
-.TH DECLAN 1 "June 2026" "Declan" "User Commands"
+.TH DECLAN 1 "July 2026" "Declan" "User Commands"
+
 
 .SH NAME
-Declan \- Declarative system configuration tool for Arch and Arch based Linux distributions.
+Declan \- Declarative Arch-based Linux system management tool.
+
 
 .SH SYNOPSIS
 .B declan
 .IR < operation > " [option]"
 
+
 .SH DESCRIPTION
-Manage packages, cleanups, configuration files, and backups.
+.B Declan
+is a utility for declarative management of Arch-based Linux systems.
+It is somewhat akin to NixOS's configuration, though it uses a JSON
+file instead of a functional language.
 
-.SS File format
-"packages"
-.br
-list of packages to remain installed and updated
-.br
-.IR NOTE(!):
-Not necessarily exhaustive; required dependencies not specified.
 
-"services"
-list of packages keep enabled
+.SH CONFIGURATION
+Declan is configured in a JSON file structured as such:
 
-"gc": {
-    "enabled": true/false,
-    "clean": []
-},
+.nf
+{
+    "description": "<user>'s <distro> configuration",
 
-"configs": {
-    "enabled": true/false,
-    "include": []
-},
+    "packages": [
+    ],
 
-"backup": {
-    "enabled": true/false,
-    "include": []
+    "services": [
+    ],
+
+    "gc": {
+        "enabled": true,
+        "include": [
+            "~/*"
+        ]
+    },
+
+    "rice": {
+        "enabled": true,
+        "remote": "user/repo",
+        "include": [
+            "program/"
+        ]
+    },
+
+    "backup": {
+        "enabled": true,
+        "path": "~/",
+        "include": [
+            "~/"
+        ]
+    }
 }
-}
+.fi
+
+
+.SH OPERATIONS
+
+.TP
+.B init
+Initialize Declan with a configuration in the user's home directory.
+
+.TP
+.B clear
+Remove Declan's stored data from the system.
+
+.TP
+.B relay
+Install newly added packages and remove delisted ones.
+
+.TP
+.B rebuild
+Perform a system upgrade.
+
+.TP
+.B gc
+Remove listed files and directories.
+
+.TP
+.B rice
+Upload select configuration files to a remote.
+
+.TP
+.B backup
+Back up listed files to an archive.
+
+.SH OPTIONS
+.TP
+.BR -h ", " --help
+Display command-line usage information.
+
+.TP
+.BR -v ", " --version
+Display the program's logo, current version, and license terms.
+
+.TP
+.B --gc
+Perform garbage collection during
+.B rebuild.
+
+.TP
+.B --casc
+Iteratively attempt cascading removal of packages set for uninstallation.
+
+.SH EXAMPLES
+.nf
+declan init
+declan relay --casc
+declan rebuild --gc --casc
+declan rice
+.fi

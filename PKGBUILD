@@ -7,16 +7,21 @@ url="https://github.com/monikrab/declan"
 license=('GPL-2.0')
 depends=('python' 'git')
 optdepends=(
-    'yay: for `declan relay` and `declan rebuild`'
-    'pv: for `declan backup`'
-    'github-cli: for `declan rice`'
+    'yay: for declan relay and declan rebuild'
+    'pv: for declan backup'
+    'github-cli: for declan rice'
+)
+source=(
+    "https://github.com/monikrab/declan/archive/refs/tags/v${pkgver}.tar.gz"
 )
 sha256sums=('SKIP')
 
 package() {
-    install -Dm755 "src/declan.py" \
-        "$pkgdir/usr/bin/declan"    
+    install -Dm755 \
+        "$srcdir/$pkgname-$pkgver/src/declan.py" \
+        "$pkgdir/usr/bin/declan"
 
-    install -Dm644 declan.1 \
+    install -Dm644 \
+        "$srcdir/$pkgname-$pkgver/declan.1" \
         "$pkgdir/usr/share/man/man1/declan.1"
 }
