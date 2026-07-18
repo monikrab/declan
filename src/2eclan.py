@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import json
 from argparse import ArgumentParser
 from pathlib import Path
@@ -408,7 +410,7 @@ def garbage_collect(paths):
 
 
 def rice(paths, remote):
-    print("TODO")
+    print(paths, remote)
 
 
 
@@ -479,8 +481,8 @@ def main():
         if args.version:
             print(
                 logo, " " + version,
-                "\n This program may be freely redistributed under",
-                " the terms of the GNU General Public License, version 2.0",
+                "\n This program may be freely redistributed under the",
+                " terms of the GNU General Public License, version 2.0",
                 sep="\n", end="\n\n"
              )
             exit(0)
@@ -555,6 +557,7 @@ def main():
                 run("sudo pacman -S --needed git base-devel", shell=True)
                 run("git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si",
                     shell=True)
+                exit(0)
             else:
                 exit(4)
 
@@ -593,6 +596,7 @@ def main():
                             ))
             if install_gh.lower() == "y":
                 run(["sudo", "pacman", "-S", "github-cli"])
+                exit(0)
             else:
                 exit(4)
                 
@@ -614,6 +618,7 @@ def main():
                             ))
             if install_pv.lower() == "y":
                 run(["sudo", "pacman", "-S", "pv"])
+                exit(0)
             else:
                 exit(4)
             
