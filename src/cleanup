@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-
-rm /home/monikrab/fia.json
-rm /home/monikrab/.cache/declan/*
-head -n -3 /home/monikrab/.config/fish/config.fish > temp.txt && mv temp.txt /home/monikrab/.config/fish/config.fish
