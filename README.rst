@@ -22,11 +22,9 @@ _____________
     {
         "description": "<user>'s <distro> configuration",
 
-        "packages": [
-        ],
+        "packages": [],
     
-        "services": [
-        ],
+        "services": [],
 
         "gc": {
             "enabled": true,
@@ -36,8 +34,8 @@ _____________
         },
 
         "rice": {
-            "enabled": true
-            "remote": "user/repo"
+            "enabled": true,
+            "remote": "user/repo",
             "include": [
                 "program/"
             ]
@@ -45,7 +43,7 @@ _____________
 
         "backup": {
             "enabled": true,
-            "path": "~/",
+            "path": "~/file.tar.xz",
             "include": [
                 "~/"
             ]
