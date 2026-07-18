@@ -14,7 +14,7 @@ optdepends=(
 source=(
     "https://github.com/monikrab/declan/archive/refs/tags/v${pkgver}.tar.gz"
 )
-sha256sums=('SKIP')
+sha256sums=('48122c2aa73f548f2e535aec2e807553b618abd21be274d7c1c55ba477b65684')
 
 package() {
     install -Dm755 \
