@@ -45,7 +45,7 @@ _____________
 
         "backup": {
             "enabled": true,
-            "location": "~/",
+            "path": "~/",
             "include": [
                 "~/"
             ]
