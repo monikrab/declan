@@ -47,7 +47,7 @@ Declan is configured in a JSON file structured as such:
 
     "backup": {
         "enabled": true,
-        "path": "~/",
+        "path": "~/file.tar.xz",
         "include": [
             "~/"
         ]
@@ -84,7 +84,7 @@ Upload select configuration files to a remote.
 
 .TP
 .B backup
-Back up listed files to an archive.
+Back up listed files to an archive. Uses xz.
 
 .SH OPTIONS
 .TP

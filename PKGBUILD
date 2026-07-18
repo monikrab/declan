@@ -14,7 +14,7 @@ optdepends=(
 source=(
     "https://github.com/monikrab/declan/archive/refs/tags/v${pkgver}.tar.gz"
 )
-sha256sums=('48122c2aa73f548f2e535aec2e807553b618abd21be274d7c1c55ba477b65684')
+sha256sums=('d1e708bc59ee4b541c68ab09fcb83d2dcce2045645f6ecaa8a09f53593100c35')
 
 package() {
     install -Dm755 \
@@ -22,6 +22,6 @@ package() {
         "$pkgdir/usr/bin/declan"
 
     install -Dm644 \
-        "$srcdir/$pkgname-$pkgver/declan.1" \
+        "$srcdir/$pkgname-$pkgver/man/declan.1" \
         "$pkgdir/usr/share/man/man1/declan.1"
 }
