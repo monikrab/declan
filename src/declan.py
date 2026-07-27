@@ -128,10 +128,12 @@ def safe_getenv(env_var):
 
 
 def init():
-    print(logo,
-          "\n       \033[3;90mdeclarative system configuration for 󰣇\033[0m",
-          sep="",
-          end="\n\n")
+    print(
+        logo,
+        "\n       \033[3;90mdeclarative system configuration for 󰣇\033[0m",
+        sep="",
+        end="\n\n\n")
+
 
 
     cached_cfg = next(cache_path.glob("*.json"), None) # there should only be one
@@ -139,16 +141,16 @@ def init():
     if cached_cfg is not None:
         read_cached_yn = ""
         while read_cached_yn not in ["y", "n"]:
-            read_cached_yn = str(input(
+            read_cached_yn = input(
                 "\n\033[93m warning:\033[0m found pre-existing config file in cache\n Would you like to read it? [Y/n]: "
-            )).strip().lower()
+            ).strip().lower()
 
         if read_cached_yn == "y":
             print(); run(["cat", f"{cached_cfg}"])
             
-            keep_cached_yn = str(input(
+            keep_cached_yn = input(
                 "\n\n Would you like to keep this config? [Y/n]: "
-            )).strip().lower()
+            ).strip().lower()
 
             if keep_cached_yn == "y": use_cached = True
 
@@ -160,11 +162,12 @@ def init():
 
     cfg_name = ""
     while not cfg_name:
-        cfg_name = str(input(
-            "\n Enter the name for your configuration file.\n"
-            " Do not add a file extension.\n\n"
+        cfg_name = input(
+            " Enter your configuration file's name\n"
+            " \033[3m(to be stored under /home/user/name.json)\033[0m\n\n"
+            " Spaces will be removed. Do not add a file extension\n\n"
             " Name: "
-        )).strip()
+        ).strip().replace(" ", "")
 
     cfg_path = Path(f"/home/{user}/{cfg_name}.json")
 
@@ -430,9 +433,9 @@ def relay_rebuild(packages, services):
     # short-circuit once something to do is found
     if any(i for i in (to_install, to_enable, to_remove, to_disable)):
         while 1:
-            proceed_yn = str(input(
+            proceed_yn = input(
                 "\033[35m::\033[0m Proceed? [Y/n]: "
-            )).strip().lower()
+            ).strip().lower()
 
             print()
 
@@ -687,7 +690,7 @@ def main():
 
 
         if args.help:
-            print(usage)
+            print(usage + "\n\nFor more detailed instructions, see 'man declan'")
             exit(0)
 
         # print usage if no args passed
@@ -753,14 +756,14 @@ def main():
         if cached_config is not None:
             read_cached_yn = ""
             while read_cached_yn not in ["y", "n"]:
-                read_cached_yn = str(input(
+                read_cached_yn = input(
                   "\n\033[93mwarning:\033[0m found pre-existing config file in cache\nWould you like to read it? [Y/n]: "
-                )).strip().lower()
+                ).strip().lower()
 
             if read_cached_yn == "y":
                 print(); run(["cat", f"{cached_config}"])
 
-            keep_cached_yn = str(input("\nWould you like to keep this config? [Y/n]: ")).strip().lower()
+            keep_cached_yn = input("\nWould you like to keep this config? [Y/n]: ").strip().lower()
             if keep_cached_yn == "y":
                 copy2(cached_config, config_path)
 
@@ -778,11 +781,11 @@ def main():
 
     if args.operation in ["relay", "rebuild"]:
         if which("yay") is None:
-            get_yay_yn = str(input(
+            get_yay_yn = input(
                 "\033[91merror:\033[0m yay (AUR helper) is not installed\n"
                 "Without it, `relay` and `rebuild` are unavailable:\n\n"
                 "Would you like to install it now? [Y/n]: "
-            )).strip().lower()
+            ).strip().lower()
 
             if get_yay_yn == "y":
                 run("yay -Y --gendb && yay -Y --devel --save", shell=True)
@@ -836,13 +839,13 @@ def main():
 
     if args.operation == "rice":
         if which("gh") is None:
-            get_gh_yn = str(input(
+            get_gh_yn = input(
                 "\033[91merror:\033[0m the GitHub CLI is not installed\n"
                 "Without it, `declan rice` is unavailable\n\n"
                 "Would you like to install it now? [Y/n]: "
-            ))
+            ).strip().lower()
 
-            if get_gh_yn.lower() == "y":
+            if get_gh_yn == "y":
                 run(["sudo", "pacman", "-S", "github-cli"])
                 exit(0)
             else:
@@ -863,13 +866,13 @@ def main():
 
     if args.operation == "backup":
         if which("pv") is None:
-            get_pv_yn = str(input(
+            get_pv_yn = input(
                 "\033[91merror:\033[0m pv (backup progress tracker) is not installed\n"
                 "Without it, `declan backup` is unavailable\n\n"
                 "Would you like to install it now? [Y/n]: "
-            ))
+            ).strip().lower()
 
-            if get_pv_yn.lower() == "y":
+            if get_pv_yn == "y":
                 run(["sudo", "pacman", "-S", "pv"])
                 exit(0)
             else:

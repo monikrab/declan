@@ -13,7 +13,6 @@
 
 
 
-
 Configuration
 _____________
 
@@ -34,21 +33,22 @@ _____________
         },
 
         "rice": {
-            "enabled": true,
+            "enabled": false,
             "remote": "user/repo",
             "include": [
-                "program/"
+                "app/"
             ]
         },
 
         "backup": {
             "enabled": true,
-            "path": "~/file.tar.xz",
+            "path": "~/name.tar.xz",
             "include": [
                 "~/"
             ]
         }
     }
+
 
 
 Usage

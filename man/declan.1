@@ -1,8 +1,10 @@
 .TH DECLAN 1 "July 2026" "Declan" "User Commands"
 
 
+
 .SH NAME
-Declan \- Declarative Arch-based Linux system management tool.
+Declan \- Declarative Arch Linux system management tool.
+
 
 
 .SH SYNOPSIS
@@ -10,15 +12,19 @@ Declan \- Declarative Arch-based Linux system management tool.
 .IR < operation > " [option]"
 
 
+
 .SH DESCRIPTION
 .B Declan
-is a utility for declarative management of Arch-based Linux systems.
-It is somewhat akin to NixOS's configuration, though it uses a JSON
-file instead of a functional language.
+is a utility for declarative management of Arch and Arch-based Linux.
+.br
+It has options purposefully akin to some of NixOS's.
+.br
+However, it merely consumes a static, non-programmable file and executes simple operations.
+
 
 
 .SH CONFIGURATION
-Declan is configured in a JSON file structured as such:
+Declan consumes a JSON file (stored in ~/) which records the user's configuration preferences:
 
 .nf
 {
@@ -38,10 +44,10 @@ Declan is configured in a JSON file structured as such:
     },
 
     "rice": {
-        "enabled": true,
+        "enabled": false,
         "remote": "user/repo",
         "include": [
-            "program/"
+            "app/"
         ]
     },
 
@@ -55,36 +61,43 @@ Declan is configured in a JSON file structured as such:
 }
 .fi
 
+The file structure on display herein is mandatory.
+.br
+Options themselves, however, may vary, as the user is expected to choose a feature set to accomodate their needs.
+
+
 
 .SH OPERATIONS
+Declared configurations are applied and/or executed on demand through various operations: 
 
 .TP
-.B init
-Initialize Declan with a configuration in the user's home directory.
+.BR 'init'
+Initializes Declan through a series of command-line prompts [...]
 
 .TP
-.B clear
+.BR 'clear'
 Remove Declan's stored data from the system.
 
 .TP
-.B relay
+.BR 'relay'
 Install newly added packages and remove delisted ones.
 
 .TP
-.B rebuild
+.BR 'rebuild'
 Perform a system upgrade.
 
 .TP
-.B gc
+.BR 'gc'/garbage-collect
 Remove listed files and directories.
 
 .TP
-.B rice
+.BR 'rice'
 Upload select configuration files to a remote.
 
 .TP
-.B backup
+.BR 'backup'
 Back up listed files to an archive. Uses xz.
+
 
 
 .SH OPTIONS
@@ -106,10 +119,11 @@ Perform garbage collection during
 Iteratively attempt cascading removal of packages set for uninstallation.
 
 
+
 .SH EXAMPLES
 .nf
 declan init
-declan relay --casc
+declan -v
 declan rebuild --gc --casc
-declan rice
+declan --help
 .fi
