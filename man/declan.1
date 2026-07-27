@@ -24,17 +24,17 @@ However, it merely consumes a static, non-programmable file and executes simple 
 
 
 .SH CONFIGURATION
-Declan consumes a JSON file (stored in ~/) which records the user's configuration preferences:
+Declan consumes a JSON file (stored in ~/) which records the user's configuration preferences.
+.br
+All its capabilities are shown in the example below: 
 
 .nf
 {
     "description": "<user>'s <distro> configuration",
 
-    "packages": [
-    ],
+    "packages": [],
 
-    "services": [
-    ],
+    "services": [],
 
     "gc": {
         "enabled": true,
@@ -61,7 +61,7 @@ Declan consumes a JSON file (stored in ~/) which records the user's configuratio
 }
 .fi
 
-The file structure on display herein is mandatory.
+The file structure on display herein is mandatory, and it is pre-set upon initialization.
 .br
 Options themselves, however, may vary, as the user is expected to choose a feature set to accomodate their needs.
 
