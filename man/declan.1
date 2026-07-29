@@ -1,3 +1,4 @@
+
 .TH DECLAN 1 "July 2026" "Declan" "User Commands"
 
 
@@ -19,14 +20,15 @@ is a utility for declarative management of Arch and Arch-based Linux.
 .br
 It has options purposefully akin to some of NixOS's.
 .br
-However, it merely consumes a static, non-programmable file and executes simple operations.
+However, it functions very differently, reading a static, non-programmable file and executing simple operations based on its contents.
+
 
 
 
 .SH CONFIGURATION
-Declan consumes a JSON file (stored in ~/) which records the user's configuration preferences.
+Declan reads a JSON file (stored in ~/) which records the user's configuration preferences.
 .br
-All its capabilities are shown in the example below: 
+All of its capabilities are showcased in the example below: 
 
 .nf
 {
@@ -63,40 +65,56 @@ All its capabilities are shown in the example below:
 
 The file structure on display herein is mandatory, and it is pre-set upon initialization.
 .br
-Options themselves, however, may vary, as the user is expected to choose a feature set to accomodate their needs.
+Options themselves, however, may vary, as the user is expected to choose a feature set as they wish.
+
 
 
 
 .SH OPERATIONS
-Declared configurations are applied and/or executed on demand through various operations: 
+Declared configurations are applied and/or executed on demand through various operations:
 
 .TP
 .BR 'init'
-Initializes Declan through a series of command-line prompts [...]
+Initializes Declan through a series of command-line prompts.
+.IP
+Behavior: Reads a logfile (.cache/declan.log) to search for a previous initialization log. If not found, prints the logo screen and begins initialization. Looks in ~/.cache to try to find a previous configuration file, asks the user whether to read it, and after whether to keep it (also executed in every other operation if the environment variable is missing). Requests the configuration file's name. Creates or copies (depending on whether a configuration was kept) the file in the current user's home directory, documenting this in the logfile. If the file already exists, skips. Find's the user's shell of choice, and writes an environment variable export to its configuration with the value of the configuration's path (DECLAN_CONFIG_PATH). Finally, prints some extra instructions, including a reminder to start a new shell before usage.
 
 .TP
 .BR 'clear'
 Remove Declan's stored data from the system.
+.IP
+Behavior: Warns the user of deletion risks and on how to exit, and asks for initial confirmation. Prompts the user on whether to delete cached files, erase the environment variable, and delete the configuration file, safely skipping if the user disapproves.
 
 .TP
 .BR 'relay'
-Install newly added packages and remove delisted ones.
+Install and enable newly added packages and services, remove and disable delisted ones.
+.IP
+Behavior: If yay is not installed, prompts the user to do so. Loads the cached configuration if it exists. Prints the list of packages to install (which aren't in both the cached list and the current list), and to remove (which are in the cached list but not in the current one). The same is repeated for services. If all the lists are empty, exit. Installs the packages declared in the configuration 'as explicit'—if a package with dependencies that are declared is later removed, those dependencies will remain installed. Removes packages and their non-explicit dependencies (orphans). If the '--casc' option was passed, cascading removal (removing everything that depends on each package) will be attempted; Pacman's removal prompt is shown each time, and if the user does not explicitly approve removal, cascading is safely skipped, and normal removal occurs for that package; the process is repeated for every package to remove. Services are straightforwardly enabled and disabled immediately. Finally, the current configuration file is cached as <date>_<time>.json in .cache, and the previous cached configuration is removed.
 
 .TP
 .BR 'rebuild'
 Perform a system upgrade.
+.IP
+Behavior: Exactly equal to 'relay', with two main differences: Rather than listing packages pending installation, 'rebuild' lists those pending updates to their latest version, and later executes this upgrade globally (even for packages not declared in the configuration). Alongside '--casc', it also allows for use of the '--gc' flag, which chains the rebuild with garbage collection (see the section 'gc' below for information), usually executed standalone with 'declan gc'.
 
 .TP
-.BR 'gc'/garbage-collect
+.BR 'gc'
 Remove listed files and directories.
+.IP
+Behavior: 
 
 .TP
 .BR 'rice'
 Upload select configuration files to a remote.
+.IP
+Behavior: 
 
 .TP
 .BR 'backup'
 Back up listed files to an archive. Uses xz.
+.IP
+Behavior: 
+
 
 
 
@@ -117,6 +135,7 @@ Perform garbage collection during
 .TP
 .B --casc
 Iteratively attempt cascading removal of packages set for uninstallation.
+
 
 
 
