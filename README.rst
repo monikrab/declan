@@ -12,7 +12,7 @@
 
 
 Configuration
-_____________
+^^^^^^^^^^^^^
 
 .. code-block :: json
 
@@ -50,7 +50,7 @@ _____________
 
 
 Usage
-_____
+^^^^^
 
 .. code-block ::
 
