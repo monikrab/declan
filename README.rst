@@ -8,9 +8,6 @@
     | |__| | | |____  | \____  | |___  /  ___  \ | |\  |
     |_____/  \______\  \_____/ \_____/ \_/   \_/ |_| \_|
 
-    Declarative system configuration for
-    Arch and Arch-based Linux distributions
-
 
 
 Configuration
