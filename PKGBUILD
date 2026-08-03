@@ -1,5 +1,5 @@
 pkgname=declan
-pkgver=1.1-beta
+pkgver=1.1-rc
 pkgrel=2
 
 pkgdesc="Tiny utility to manage Arch Linux declaratively"

@@ -47,9 +47,9 @@ All of its capabilities are showcased in the example below:
 
     "rice": {
         "enabled": false,
-        "remote": "user/repo",
+        "repo": "user/repo",
         "include": [
-            "app/"  <-- Always "quote" list elements
+            "app/"
         ]
     },
 
@@ -77,43 +77,43 @@ Configurations are applied to the system through Declan's various command-line o
 .BR 'init'
 Initializes Declan through a series of command-line prompts.
 .IP
-Behavior: Reads a logfile (.cache/declan.log) to search for a previous initialization log. If it's not found, shows the logo screen and begins initialization. Looks in Declan's cache (~/.cache/declan) to try to find a previous configuration file. If found, asks the user whether to read it, and after whether to keep it (this prompt is shown before any operation if the environment variable is missing). Requests a name for the configuration file. Creates (or copies, depending on whether a configuration was kept) the file in the current user's home root (~/), documenting this in the logfile. If a file of the same name exists, skips creation. Finds the user's shell of choice, and exports an environment variable in its configuration file, with the value of the aforementioned path ($DECLAN_CONFIG_PATH). Shows the final instructions and exits.
+Behavior: Searches for a previous initialization log. If not found, shows the logo screen and begins initialization. Looks in Declan's cache to try to find a previous configuration file. If found, asks the user whether to read it, and whether to keep it (this prompt is shown before any operation if the environment variable is missing). Requests a name for the configuration file. Creates (or copies to, depending on whether a configuration was kept) the file in the current user's home root (~/), and logs its creation. If a file of the same name already exists, skips creation. Finds the user's login shell, writes an environment variable export to its startup file, with the value of the configuration's path ($DECLAN_CONFIG_PATH). Exits after showing additional instructions.
 
 .TP
 .BR 'clear'
 Remove Declan's data from the system.
 .IP
-Behavior: Warns the user of deletion risks. Asks for initial confirmation. Prompts the user on whether to delete cached files, erase the environment variable, and delete the configuration file, safely skipping each if the user disapproves.
+Behavior: Warns the user of deletion risks. Asks for initial confirmation. Sequentially prompts the user on whether to delete cached files, erase the environment variable, and delete the configuration file, safely skipping each if no approval is given.
 
 .TP
 .BR 'relay'
 Install and enable newly added packages and services, remove and disable delisted ones. Options: --casc;
 .IP
-Behavior: If 'yay' is not installed, prompts the user to do so. Loads the cached configuration file if it exists. Shows the list of packages to install (those which are in the current listed but not in the old one), and to remove (those which are only in the old one). The same is done for services to enable and disable. If all the lists are empty, warns the user and exits. Installs listed packages as explicit (declared packages will never be auto-removed, even if they are unneeded dependencies). Removes listed packages and their dependencies. Note: if the '--casc' option was passed, cascading removal (removing everything that depends on each package) will be attempted: Pacman's package removal prompt is shown for each package, and if the user does not approve, normal removal occurs for that package, the process is repeated for every package to remove. Services are enabled and disabled immediately. The current configuration file is cached as <date>_<time>.json in Declan's cache, and the previous cached configuration is deleted.
+Behavior: If 'yay' is not installed, prompts the user to do so. Loads the cached configuration file if it exists. Shows the list of packages to install (in the current list but not in the previous one), and to remove (in only the previous one). The same is done for services to enable and disable. If all the lists are empty, warns the user and exits. Installs listed packages as explicit, so that declared packages are never removed unless taken out of the list. Removes delisted packages and their dependencies. Note: if the '--casc' option was passed, cascading removal (removing everything that depends on each package) will be attempted; Pacman's package removal prompt will be shown for each package, and if the user does not approve, the package is removed normally. Services are enabled and disabled immediately. The current configuration file is cached with a timestamp in Declan's cache, and the previous cached configuration is deleted.
 
 .TP
 .BR 'rebuild'
 Perform a system upgrade and enable services. Options: --casc, --gc
 .IP
-Behavior: The same as 'relay', except: 1. Rather than listing packages pending installation, 'rebuild' lists those pending updates to their latest version, and executes this upgrade even for packages not declared in the configuration. Alongside '--casc', it also permits the '--gc' flag, which automatically chains a rebuild with 'declan gc' (see 'gc' below for more information).
+Behavior: Same as 'relay', but lists all packages pending updates to their latest version, and executes the upgrade. Note: upgrades all packages, even if not declared in the configuration. Alongside '--casc', it also permits the '--gc' flag, which automatically chains its execution with 'gc'.
 
 .TP
 .BR 'gc'
 Remove listed files and directories, orphaned packages, and package cache.
 .IP
-Behavior: Reads the list of paths declared in the configuration file. Note: the glob wildcard '*' is supported and expands to all the paths within a directory. Removes all listed files and directories. WARNING: deletion is not reversible! Removes orphaned packages and package cache. Note: the latter has its own multi-line prompt.
+Behavior: Reads the list of paths declared in the configuration file. Note: the wildcard character '*' is supported. Removes all listed files and directories. WARNING: deletion is not reversible. Removes orphaned packages and package cache. Note: the latter has its own multi-line prompt.
 
 .TP
 .BR 'rice'
-Upload select configuration files to a remote repository.
+Upload select configuration files to a remote repository. Options: --get
 .IP
-Behavior: WARNING: only GitHub repositories are supported. If the GitHub CLI is not installed, prompts the user to do so. Checks the user's GitHub authentication status through 'gh auth'. If a repository is not yet initialized at ~/.config, initializes one. WARNING: 'rice' should not be used if a repository is already initialized in .config; if so, please remove it beforehand, pointing the new one to the same remote if you wish for continuity. Before committing, temporarily untracks every file in .config, before adding only the currently listed ones. Commits with a static message and pushes to the listed remote. The output of 'git push' is shown before exiting.
+Behavior: If the GitHub CLI is not installed, prompts the user to do so. WARNING: only GitHub repositories are supported. Checks the user's GitHub authentication status. If a repository is not yet initialized at ~/.config, does so. WARNING: 'rice' won't function if a repository is present in ~/.config, remove existing ones beforehand. Commits only the listed items with a message recording the time, and uploads to the listed repository. The output of 'git push' is shown. The '--get' flag quickly clones the repository into ~/.config/declan-rice.
 
 .TP
 .BR 'backup'
 Back up listed files and directories to an xz-compressed tarball.
 .IP
-Behavior: If 'pv' (Pipe Viewer) is not installed, prompts the user to do so. Requests the desired compression level (see XZ Utils' documentation for extra information). Calculates the total size to compress (in gigabytes) and shows a progress bar. Note: compression is parallelized with xz's 'T0' option. WARNING: leading slashes are removed, so extracting the file will result in a structure as such: backup_name/etc/file; this is done to avoid extraction directly into the root folder. Note: backups preserve files' full paths.
+Behavior: If 'pv' (Pipe Viewer) is not installed, prompts the user to do so. Note: always uses 'xz'. Requests the desired compression level. Calculates the total size to compress (in gigabytes) and shows the backup's progress bar. Note: compression is parallelized. WARNING: leading slashes are removed, so files will not be extracted directly into the system root. Note: backups preserve files' full paths.
 
 
 
@@ -138,6 +138,10 @@ Perform garbage collection after 'rebuild' finishes.
 .B --casc
 Iteratively attempt cascading removal of packages set for uninstallation. See 'relay' for details.
 
+.TP
+.B --get
+Copies files from the specified repository into ~/.config/declan-rice
+
 
 
 
@@ -146,5 +150,5 @@ Iteratively attempt cascading removal of packages set for uninstallation. See 'r
 declan -v
 declan --help
 declan rebuild --gc --casc
-declan rice
+declan backup
 .fi

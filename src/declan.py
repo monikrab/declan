@@ -31,7 +31,7 @@ user = getuser()
 cache_path = Path(f"/home/{user}/.cache/declan")
 cache_path.mkdir(parents=True, exist_ok=True)
 
-version = "\033[3mversion 1.0\033[0m"
+version = "\033[3mversion 1.1\033[0m"
 
 usage = """usage: declan <operation> [options]\n
 operations:
@@ -42,7 +42,7 @@ operations:
     declan relay    [--casc]
     declan rebuild  [--gc] [--casc]
     declan gc
-    declan rice
+    declan rice     [--get]
     declan backup"""
 
 
@@ -83,6 +83,10 @@ parser.add_argument(
 )
 parser.add_argument(
     "--casc",
+    action="store_true"
+)
+parser.add_argument(
+    "--get",
     action="store_true"
 )
 
@@ -200,7 +204,7 @@ def init():
         },
         "rice": {
             "enabled": False,
-            "remote": "",
+            "repo": "",
             "include": []
         },
         "backup": {
@@ -260,9 +264,9 @@ def init():
 
 
     print(
-        "\033[92m\n Initialization finished.\033[0m\n"
-        "\033[91m Please restart your shell before using Declan!\033[0m\n"
-        " For usage instructions, type 'declan --h' or 'man 1 declan' into your shell\n\n"
+        "\033[92m\n Initialization complete.\033[0m\n"
+        "\033[91m Restart your shell or open a new one before running operations!\033[0m\n"
+        " For usage instructions, run 'declan -h' or 'man 1 declan'\n\n"
         "\033[95m Enjoy :V\033[0m"
     )
 
@@ -349,8 +353,8 @@ def parse_config(path):
 
     if cfg["rice"]["enabled"]:
         features += "R"
-        rice = cfg["rice"]["include"]; remote = cfg["rice"]["remote"]
-        cfg_data[4] = [rice, remote]
+        rice = cfg["rice"]["include"]; repo = cfg["rice"]["repo"]
+        cfg_data[4] = [rice, repo]
 
     if cfg["backup"]["enabled"]:
         features += "B"
@@ -530,10 +534,10 @@ def garbage_collect(paths):
     run(["sudo", "rm", "-rf", *full_paths])
 
     # Remove orphaned packages
-    run(["yay", "-Yc"])
+    run(["yay", "-Yc", "--noconfirm", "--noprogressbar"])
 
     # Remove packaged cache (multi-line prompt)
-    run(["yay", "-Scc"]) # -rfv to debug
+    run(["yay", "-Scc"])
 
 
     print("\n\033[92mDone!\033[0m\n")
@@ -558,6 +562,16 @@ def rice(paths, remote):
         exit(3)
     else:
         pass
+
+
+    if args.get:
+        Path(dot_config + "declan-rice").mkdir(exist_ok=True)
+
+        run(["git", "clone", f"{remote[:-4]}", "declan-rice"], cwd=dot_config)
+
+        print("\n\033[92mCopied rice into ~/.config/declan-rice\033[0m" +
+              "\nTo overwrite the current rice from inside ~/.config, run 'cp -r declan-rice/* .'")
+        exit(0)
 
 
     git_status = run(
@@ -586,7 +600,7 @@ def rice(paths, remote):
     # then add currently listed ones again before committing
     run(["git", "add", *paths], stdout=DEVNULL, cwd=dot_config)
     run(
-        ["git", "commit", "-m", "declan — wrote configs to repository"],
+        ["git", "commit", "-m", f"declan rice commit — {dt.now().strftime('%Y-%m-%d %H:%M')}"],
         stdout=DEVNULL,
         cwd=dot_config
     )
@@ -718,6 +732,11 @@ def main():
 
     if args.casc and args.operation not in ["relay", "rebuild"]:
         print("\033[91merror:\033[0m option '--casc' can only be used with operation(s): relay, rebuild",
+              usage, sep="\n\n")
+        exit(3)
+
+    if args.get and args.operation != "rice":
+        print("\033[91merror:\033[0m option '--get' can only be used with operation(s): rice",
               usage, sep="\n\n")
         exit(3)
 
@@ -883,13 +902,13 @@ def main():
 
         if "R" in features[0]:
             if not features[4][0]:
-                print("\033[91merror:\033[0m no contents of .config specified")
+                print("\033[91merror:\033[0m no contents of ~/.config specified")
                 exit(3)
             else:
                 rice(features[4][0], features[4][1])
 
         else:
-            print("\033[91merror:\033[0m .config management disabled in config file")
+            print("\033[91merror:\033[0m ~/.config management disabled in config file")
             exit(3)
 
 

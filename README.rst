@@ -34,7 +34,7 @@ Configuration
 
         "rice": {
             "enabled": false,
-            "remote": "user/repo",
+            "repo": "user/repo",
             "include": [
                 "app/"
             ]
@@ -69,5 +69,5 @@ Usage
         declan rebuild  [--gc] [--casc]
         declan gc
 
-        declan rice
+        declan rice     [--get]
         declan backup
