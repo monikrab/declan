@@ -4,7 +4,7 @@
 
 
 .SH NAME
-Declan \- Utility to manage Arch Linux declaratively.
+Declan \- Utility to manage Arch-based Linux declaratively.
 
 
 
@@ -16,23 +16,19 @@ Declan \- Utility to manage Arch Linux declaratively.
 
 .SH DESCRIPTION
 .B Declan
-is a utility to declaratively manageme Arch and Arch-based Linux systems.
+is a utility to declaratively manage Arch and Arch-based Linux systems.
 .br
-It has some features inspired by NixOS 'configuration.nix'. However, Declan's configuration file is merely declarative, and thus not programmable nor extensible.
+Its main inspiration is NixOS's 'configuration.nix'. However, Declan's configuration is merely declarative, and thus not programmable nor extensible.
 
 
 
 
 .SH CONFIGURATION
-Declan reads a JSON file which records the user's configuration preferences.
-.br
-The file is initialized, and must remain located at the root of the user's home directory.
-.br
-All of its capabilities are showcased in the example below: 
+Declan reads a JSON file which records the user's configuration preferences. The file is initialized, and must remain located at the root of the user's home directory. All of its capabilities are showcased in the example below:
 
 .nf
 {
-    "description": "<user>'s <distro> configuration",  <-- Auto-generated
+    "description": "<user>'s <distro> configuration",
 
     "packages": [],
   
@@ -63,9 +59,35 @@ All of its capabilities are showcased in the example below:
 }
 .fi
 
-The file structure displayed herein is mandatory, and it is pre-set upon initialization.
+The file structure displayed herein is mandatory, and it is automatically set upon initialization.
 .br
 By default, nothing is listed or enabled. Users can choose any combination of features.
+
+
+.SS Item Formatting
+
+The 'packages', 'services', and 'include' keys have array values. Following JSON's syntax, items in those arrays must be "quoted", mandatorily in double quotes. If there are multiple items in an array, all but the last should be appended with a comma (,), like so:
+
+.nf
+"key": [
+    "foo",
+    "bar",
+    "baz"
+]
+.fi
+
+.br
+In the array of packages, list packages as they're named in their repository (extra/AUR/etc.). Metapackages are supported.
+.sp 1
+In the array of services, list services as they're named in the /systemd/system/ directories. The extension '.service' can be omitted.
+.sp 1
+All three 'include' keys take paths, though formatting varies:
+.nf
+    - In 'gc' and 'backup', tilde expansion (~) (to the user's home directory) is supported.
+    - In 'gc', the globbing pattern '*' is supported.
+    - In 'rice', paths are appended to ~/.config/, and should point directly to files and directories within it without any extra leading characters.  
+.sp 1
+Though unnecessary, consider appending paths which are directories with a slash (/) for self-documentation.
 
 
 
@@ -101,7 +123,7 @@ Behavior: Same as 'relay', but lists all packages pending updates to their lates
 .BR 'gc'
 Remove listed files and directories, orphaned packages, and package cache.
 .IP
-Behavior: Reads the list of paths declared in the configuration file. Note: the wildcard character '*' is supported. Removes all listed files and directories. WARNING: deletion is not reversible. Removes orphaned packages and package cache. Note: the latter has its own multi-line prompt.
+Behavior: Reads the list of paths declared in the configuration file. Removes all listed files and directories. WARNING: deletion is not reversible. Removes orphaned packages and package cache. Note: the latter has its own multi-line prompt.
 
 .TP
 .BR 'rice'

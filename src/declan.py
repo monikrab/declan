@@ -4,7 +4,7 @@
 Declan
 
 A tiny utility to manage
-Arch Linux declaratively 
+Arch-based Linux declaratively 
 
 https://github.com/monikrab/declan
 """
@@ -297,9 +297,9 @@ def clear(cfg_path):
 
         if input("\nEnvironment variable: $DECLAN_CONFIG_PATH\n\033[35m::\033[0m \033[1mWipe environment variable? [Y/n]:\033[0m ").strip().lower() == "y":
             sh = env.get("SHELL")
-            if   sh == "/usr/bin/fish": sh_cfg_path = ".config/fish/config.fish"
-            elif sh == "/usr/bin/zsh":  sh_cfg_path = ".zshrc"
-            elif sh == "/usr/bin/bash": sh_cfg_path = ".bashrc"
+            if   sh in ["/usr/bin/fish", "/bin/fish"]: sh_cfg_path = ".config/fish/config.fish"
+            elif sh in ["/usr/bin/zsh", "/bin/zsh"]:   sh_cfg_path = ".zshrc"
+            elif sh in ["/usr/bin/bash", "/bin/bash"]: sh_cfg_path = ".bashrc"
 
             with open(f"/home/{user}/{sh_cfg_path}", "r") as s:
                 sh_cfg_lines = s.readlines()
@@ -536,7 +536,9 @@ def garbage_collect(paths):
     # Remove orphaned packages
     run(["yay", "-Yc", "--noconfirm", "--noprogressbar"])
 
-    # Remove packaged cache (multi-line prompt)
+    # HACK for https://gitlab.archlinux.org/pacman/pacman/-/work_items/297
+    run(["sudo", "rm", "-r", *glob(/var/cache/pacman/pkg/download-*)])
+    # Remove packaged cache (proper command)
     run(["yay", "-Scc"])
 
 
@@ -875,10 +877,9 @@ def main():
 
         if "G" in features[0]:
             if not features[3]:
-                print("\033[91merror:\033[0m no garbage collection paths specified")
-                exit(3)
-            else:
-                garbage_collect(features[3])
+                print("\033[93mwarning:\033[0m no garbage collection paths specified")
+
+            garbage_collect(features[3])
     
         else:
             print("\033[91merror:\033[0m garbage collection disabled in config")

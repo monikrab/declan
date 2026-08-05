@@ -1,13 +1,13 @@
 pkgname=declan
-pkgver=1.1-rc
-pkgrel=2
+pkgver=1.1
+pkgrel=1
 
-pkgdesc="Tiny utility to manage Arch Linux declaratively"
+pkgdesc="Tiny utility to manage Arch-based Linux declaratively"
 arch=("any")
 url="https://github.com/monikrab/declan"
 license=("GPL-2.0")
 
-depends=("python" "git")
+depends=("python" "git" "man-db")
 optdepends=(
     "yay: for 'relay' and 'rebuild'"
     "pv: for 'backup'"
@@ -26,12 +26,23 @@ source=(
 )
 sha256sums=('SKIP')
 
+# $pkgver obsolete without a release
+# package() {
+#     install -Dm755 \
+#         "$srcdir/$pkgname-$pkgver/src/declan.py" \
+#         "$pkgdir/usr/bin/declan"
+
+#     install -Dm644 \
+#         "$srcdir/$pkgname-$pkgver/man/declan.1" \
+#         "$pkgdir/usr/share/man/man1/declan.1"
+# }
+
 package() {
     install -Dm755 \
-        "$srcdir/$pkgname-$pkgver/src/declan.py" \
+        "$srcdir/$pkgname/src/declan.py" \
         "$pkgdir/usr/bin/declan"
 
     install -Dm644 \
-        "$srcdir/$pkgname-$pkgver/man/declan.1" \
+        "$srcdir/$pkgname/man/declan.1" \
         "$pkgdir/usr/share/man/man1/declan.1"
 }
