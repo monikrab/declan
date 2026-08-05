@@ -9,7 +9,7 @@
     |_____/  \______\  \_____/ \_____/ \_/   \_/ |_| \_|
 
     declarative system manager
-    for arch & arch-based linux
+    for arch-based linux
 
 
 
