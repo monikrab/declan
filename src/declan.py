@@ -537,7 +537,7 @@ def garbage_collect(paths):
     run(["yay", "-Yc", "--noconfirm", "--noprogressbar"])
 
     # HACK for https://gitlab.archlinux.org/pacman/pacman/-/work_items/297
-    run(["sudo", "rm", "-r", *glob(/var/cache/pacman/pkg/download-*)])
+    run(["sudo", "rm", "-r", *glob("/var/cache/pacman/pkg/download-*")])
     # Remove packaged cache (proper command)
     run(["yay", "-Scc"])
 
