@@ -610,7 +610,7 @@ def rice(paths, remote):
 
     print("\033[90m", end="", flush=True)
     git_push = run(
-        ["git", "push", "-u", "origin", "main"],
+        ["git", "push", "-uf", "origin", "main"],
         stdout=PIPE,
         cwd=dot_config,
         text=True
