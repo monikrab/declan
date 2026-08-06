@@ -531,13 +531,12 @@ def garbage_collect(paths):
     print("\033[90m", end="", flush=True)
 
     # change to -rfv to debug
-    run(["sudo", "rm", "-rf", *full_paths])
+    # HACK for https://gitlab.archlinux.org/pacman/pacman/-/work_items/297
+    run(["sudo", "rm", "-rf", *full_paths + glob("/var/cache/pacman/pkg/download-*")])
 
     # Remove orphaned packages
     run(["yay", "-Yc", "--noconfirm", "--noprogressbar"])
 
-    # HACK for https://gitlab.archlinux.org/pacman/pacman/-/work_items/297
-    run(["sudo", "rm", "-r", *glob("/var/cache/pacman/pkg/download-*")])
     # Remove packaged cache (proper command)
     run(["yay", "-Scc"])
 
@@ -567,6 +566,7 @@ def rice(paths, remote):
 
 
     if args.get:
+        rmtree(dot_config + "declan-rice", ignore_errors=True)
         Path(dot_config + "declan-rice").mkdir(exist_ok=True)
 
         run(["git", "clone", f"{remote[:-4]}", "declan-rice"], cwd=dot_config)
@@ -593,7 +593,7 @@ def rice(paths, remote):
         text=True
     )
     if remote not in git_remotes.stdout:
-        run(["git", "remote", "add", "origin", remote])
+        run(["git", "remote", "add", "origin", remote], cwd=dot_config)
 
 
     # stop tracking every file
