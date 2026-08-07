@@ -168,7 +168,7 @@ def init():
     while not cfg_name:
         cfg_name = input(
             " Enter your configuration file's name\n"
-            " \033[3m(to be stored under /home/user/name.json)\033[0m\n\n"
+            " \033[3m(to be stored under /home/user/<name>.json)\033[0m\n\n"
             " Spaces will be removed. Do not add a file extension\n\n"
             " Name: "
         ).strip().replace(" ", "")
@@ -250,7 +250,7 @@ def init():
 
     sh = env.get("SHELL")
     if   sh in ["/usr/bin/fish", "/bin/fish"]: sh_cfg_path = ".config/fish/config.fish"
-    elif sh in ["/usr/bin/zsh", "/bin/zsh"]:   sh_cfg_path = ".zshrc"
+    elif sh in ["/usr/bin/zsh",  "/bin/zsh"]:  sh_cfg_path = ".zshrc"
     elif sh in ["/usr/bin/bash", "/bin/bash"]: sh_cfg_path = ".bashrc"
 
     env_var = dedent(f"""
@@ -262,14 +262,14 @@ def init():
         if "DECLAN_CONFIG_PATH" in f.read(): raise EnvVarExistsError(sh_path)
         else:
             f.write(env_var)
-            print(" \033[3m(saved at", sh_cfg_path, "as $DECLAN_CONFIG_PATH)\033[0m", end="\n")
+            print(" \033[3m(saved to", sh_cfg_path, "as $DECLAN_CONFIG_PATH)\033[0m", end="\n")
 
 
 
     print(
-        "\033[92m\n Initialization complete.\033[0m\n"
+        "\033[92m\n Initialization completed.\033[0m\n"
         "\033[91m Restart your shell or open a new one before running operations!\033[0m\n"
-        " For usage instructions, run 'declan -h' or 'man 1 declan'\n\n"
+        " For usage instructions, run 'declan -h' or 'man declan'\n\n"
         "\033[95m Enjoy :V\033[0m"
     )
 
@@ -301,7 +301,7 @@ def clear(cfg_path):
         if input("\nEnvironment variable: $DECLAN_CONFIG_PATH\n\033[35m::\033[0m \033[1mWipe environment variable? [Y/n]:\033[0m ").strip().lower() == "y":
             sh = env.get("SHELL")
             if   sh in ["/usr/bin/fish", "/bin/fish"]: sh_cfg_path = ".config/fish/config.fish"
-            elif sh in ["/usr/bin/zsh", "/bin/zsh"]:   sh_cfg_path = ".zshrc"
+            elif sh in ["/usr/bin/zsh",  "/bin/zsh"]:  sh_cfg_path = ".zshrc"
             elif sh in ["/usr/bin/bash", "/bin/bash"]: sh_cfg_path = ".bashrc"
 
             with open(f"/home/{user}/{sh_cfg_path}", "r") as s:
@@ -413,7 +413,7 @@ def relay_rebuild(packages, services):
             ["column", "-S", "2"], input=pending_updates.stdout
         )
 
-        if pending_updates.stdout: to_install = "updates"
+        if pending_updates.stdout: to_install = "updates" # make sure to_install is not None
         print()
 
 
@@ -468,11 +468,11 @@ def relay_rebuild(packages, services):
         if args.operation == "relay":
             run(
                 ["yay", "-S", "--asexplicit",
-                "--noconfirm", "--noprogressbar", "--needed", *to_install],
+                "--noconfirm", "--noprogressbar", "--needed", *to_install]
             )
         elif args.operation == "rebuild":
             run(
-                ["yay", "-Syu", "--noconfirm", "--noprogressbar"],
+                ["yay", "-Syu", "--noconfirm", "--noprogressbar"]
             )
 
     if to_remove:
@@ -569,7 +569,7 @@ def rice(paths, remote):
         text=True
     )
     if "Logged in" not in github_auth.stdout:
-        print("\033[91merror:\033[0m not authenticated to GitHub\nComplete 'gh auth' and retry")
+        print("\033[91merror:\033[0m not authenticated to GitHub\nComplete 'gh auth login' and retry")
         exit(3)
     else:
         pass
@@ -584,6 +584,11 @@ def rice(paths, remote):
         print("\n\033[92mCopied rice into ~/.config/declan-rice\033[0m" +
               "\nTo overwrite the current rice from inside ~/.config, run 'cp -r declan-rice/* .'")
         exit(0)
+
+
+    if not paths:
+        print("\033[91merror:\033[0m no contents of ~/.config specified")
+        exit(3)
 
 
     git_status = run(
@@ -828,13 +833,14 @@ def main():
             ).strip().lower()
 
             if get_yay_yn == "y":
-                run("yay -Y --gendb && yay -Y --devel --save", shell=True)
-                run("sudo pacman -S --needed git base-devel", shell=True)
+                run("sudo pacman -S --needed --noconfirm --noprogressbar git base-devel", shell=True)
                 run(
-                    "git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si",
+                    "git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm",
                     shell=True,
                     cwd=f"/home/{user}/.cache/"
                 )
+                run("yay -Y --gendb && yay -Y --devel --save", shell=True)
+                print("\nDone.")
                 exit(0)
 
             else:
@@ -857,6 +863,18 @@ def main():
             # always cache the config after relay/rebuild
             cache_config(user, config_path)
 
+        # upgrade the system even if nothing is declared
+        elif args.operation == "rebuild":
+            print("\033[1mPackages to update:\033[0m")
+
+            pending_updates = run(["pacman", "-Quq"], stdout=PIPE)
+            run(["column", "-S", "2"], input=pending_updates.stdout)
+            print()
+            run(["yay", "-Syu", "--noconfirm", "--noprogressbar"])
+
+            if args.gc:
+                garbage_collect(features[3])
+
         else:
             print("there is nothing to do")
             exit(4)
@@ -872,13 +890,14 @@ def main():
             ).strip().lower()
 
             if get_yay_yn == "y":
-                run("yay -Y --gendb && yay -Y --devel --save", shell=True)
-                run("sudo pacman -S --needed git base-devel", shell=True)
+                run("sudo pacman -S --needed --noconfirm --noprogressbar git base-devel", shell=True)
                 run(
-                    "git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si",
+                    "git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm",
                     shell=True,
                     cwd=f"/home/{user}/.cache/"
                 )
+                run("yay -Y --gendb && yay -Y --devel --save", shell=True)
+                print("\nDone.")
                 exit(0)
 
             else:
@@ -905,20 +924,17 @@ def main():
             ).strip().lower()
 
             if get_gh_yn == "y":
-                run(["sudo", "pacman", "-S", "github-cli"])
+                run(["sudo", "pacman", "-S", "--noconfirm", "--noprogressbar", "github-cli"])
+                print("\nDone.")
                 exit(0)
             else:
                 exit(4)
 
         if "R" in features[0]:
-            if not features[4][0]:
-                print("\033[91merror:\033[0m no contents of ~/.config specified")
-                exit(3)
-            else:
-                rice(features[4][0], features[4][1])
+            rice(features[4][0], features[4][1])
 
         else:
-            print("\033[91merror:\033[0m ~/.config management disabled in config file")
+            print("\033[91merror:\033[0m rice management disabled in config file")
             exit(3)
 
 
@@ -932,7 +948,8 @@ def main():
             ).strip().lower()
 
             if get_pv_yn == "y":
-                run(["sudo", "pacman", "-S", "pv"])
+                run(["sudo", "pacman", "-S", "--noconfirm", "--noprogressbar" "pv"])
+                print("\nDone.")
                 exit(0)
             else:
                 exit(4)

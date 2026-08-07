@@ -34,15 +34,15 @@ Configuration
 
         "rice": {
             "enabled": false,
-            "repo": "user/repo",
+            "repo": "<user>/<repo>",
             "include": [
-                "app/"
+                "<app>/"
             ]
         },
 
         "backup": {
             "enabled": true,
-            "path": "~/name.tar.xz",
+            "path": "~/<name>.tar.xz",
             "include": [
                 "~/"
             ]

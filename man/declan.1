@@ -43,15 +43,15 @@ Declan reads a JSON file which records the user's configuration preferences. The
 
     "rice": {
         "enabled": false,
-        "repo": "user/repo",
+        "repo": "<user>/<repo>",
         "include": [
-            "app/"
+            "<app>/"
         ]
     },
 
     "backup": {
         "enabled": true,
-        "path": "~/file.tar.xz",
+        "path": "~/<name>.tar.xz",
         "include": [
             "~/"
         ]
@@ -136,6 +136,8 @@ Behavior: If the GitHub CLI is not installed, prompts the user to do so. WARNING
 Back up listed files and directories to an xz-compressed tarball.
 .IP
 Behavior: If 'pv' (Pipe Viewer) is not installed, prompts the user to do so. Note: always uses 'xz'. Requests the desired compression level. Calculates the total size to compress (in gigabytes) and shows the backup's progress bar. Note: compression is parallelized. WARNING: leading slashes are removed, so files will not be extracted directly into the system root. Note: backups preserve files' full paths.
+.IP
+The 'path' key requires including the file extension: '.tar.xz', and will result in broken backups without it.
 
 
 
