@@ -111,7 +111,7 @@ class EnvVarExistsError(DeclanError):
     def __init__(self, path):
         super().__init__(
             f"""\n\033[91m error:\033[0m environment variable already exists in {path}
- Make sure it matches your configuration file's path!"""
+ Make sure it matches your configuration file's path"""
         )
 
 class EnvVarNotExistsError(DeclanError):
@@ -179,8 +179,8 @@ def init():
 
     release = Path("/etc/os-release").read_text()
 
-    if   "ID=cachyos" in release:     distro = "CachyOS"
-    elif "ID=arch" in release:        distro = "Arch Linux"
+    if   "ID=arch" in release:        distro = "Arch Linux"
+    elif "ID=cachyos" in release:     distro = "CachyOS"
     elif "ID=manjaro" in release:     distro = "Manjaro"
     elif "ID=endeavouros" in release: distro = "EndeavourOS"
     elif "ID=omarchy" in release:     distro = "Omarchy"
@@ -188,6 +188,9 @@ def init():
     elif "ID=biglinux" in release:    distro = "BigLinux"
     elif "ID=artix" in release:       distro = "Artix Linux"
     elif "ID=archcraft" in release:   distro = "Archcraft"
+
+    elif which("pacman"):
+        distro = "Arch-based distro"
     else:
         print("\033[91m error:\033[0m unsupported operating system")
         exit(3)
@@ -326,7 +329,7 @@ def parse_config(path):
             cfg = json.load(p)
         except json.JSONDecodeError as e:
             print(f"\033[91merror:\033[0m invalid JSON formatting: {e.msg.lower()} at line {e.lineno}, character {e.colno}")
-            exit(1)
+            exit(1)            
 
     """
     Data Codes:
@@ -339,27 +342,34 @@ def parse_config(path):
     features = ""
     cfg_data = [None, [], [], [], [], []]
 
-    if cfg["packages"]:
-        features += "P"
-        packages = cfg["packages"]; cfg_data[1] = packages
+    try:
+        if cfg["packages"]:
+            features += "P"
+            packages = cfg["packages"]; cfg_data[1] = packages
 
-    if cfg["services"]:
-        features += "S"
-        services = cfg["services"]; cfg_data[2] = services
+        if cfg["services"]:
+            features += "S"
+            services = cfg["services"]; cfg_data[2] = services
 
-    if cfg["gc"]["enabled"]:
-        features += "G"
-        gc = cfg["gc"]["include"]; cfg_data[3] = gc
+        if cfg["gc"]["enabled"]:
+            features += "G"
+            gc = cfg["gc"]["include"]; cfg_data[3] = gc
 
-    if cfg["rice"]["enabled"]:
-        features += "R"
-        rice = cfg["rice"]["include"]; repo = cfg["rice"]["repo"]
-        cfg_data[4] = [rice, repo]
+        if cfg["rice"]["enabled"]:
+            features += "R"
+            rice = cfg["rice"]["include"]; repo = cfg["rice"]["repo"]
+            cfg_data[4] = [rice, repo]
 
-    if cfg["backup"]["enabled"]:
-        features += "B"
-        backup = cfg["backup"]["include"]; path = cfg["backup"]["path"]
-        cfg_data[5] = [backup, path]
+        if cfg["backup"]["enabled"]:
+            features += "B"
+            backup = cfg["backup"]["include"]; path = cfg["backup"]["path"]
+            cfg_data[5] = [backup, path]
+    except KeyError as e:
+        print(
+            f"\033[91merror:\033[0m missing key {e} in configuration",
+            "\nIf you can't find it, compare your file to the example in 'man declan'"
+        )
+        exit(3)
 
     cfg_data[0] = features
     return cfg_data
@@ -639,25 +649,23 @@ def backup(paths, location):
     print("\033[90m")
 
 
-    wc_size = run(
-        ["wc", "-c", *files],
+    du_size = run(
+        ["du", "-shc", *files],
         capture_output=True,
         text=True
     )
-    for line in wc_size.stdout.splitlines():
+    for line in du_size.stdout.splitlines():
         if "total" in line:
-            # e.g.
             # [0]  [1]
             # 1234 file1
             # 4321 file2
             # 5555 total
             size = line.split()[0]
 
-        elif len(wc_size.stdout.splitlines()) < 2:
+        elif len(du_size.stdout.splitlines()) < 2:
             size = line.split()[0]
 
-    # backups are large, GB is a good default
-    print("Total size to back up:", round(int(size)/1e9, 2), "GB")
+    print("Total size to back up:", size + "B")
 
 
     # remove leading slash, avoid warnings and extraction into /
@@ -667,15 +675,16 @@ def backup(paths, location):
     options = { "XZ_OPT": f"-T0 -{cmp_lvl}" }
 
     # tar -I selects the following command in place of a typical compressor (z, J, etc.)
-    # in this case, it goes through pv, which calculates progress, and then passes data to xz
+    # in this case, it goes through pv, which calculates progress on given size, and then passes data to xz
     tar = run([
             "sudo", "tar", "-I", f"pv -u shaded -s {size} -w 97 | xz", # -u shaded doesn't work?
             "-cf", location,
-            "-C", "/", *files, # look in / but don't store paths without the /
+            "-C", "/", *files,
         ],
         env=options,
         text=True,
     )
+    # Does not handle KeyboardInterrupt
 
     print("\n\033[92mBackup complete!\033[0m")
 
