@@ -627,7 +627,8 @@ def rice(paths, remote):
 
 
     # stop tracking every file
-    run(["git", "rm", "-r", "--cached", "."], stdout=DEVNULL, cwd=dot_config)
+    if "On branch" in git_status.stdout:
+        run(["git", "rm", "-r", "--cached", "."], stdout=DEVNULL, cwd=dot_config)
 
     # then add currently listed ones again before committing
     run(["git", "add", *paths], stdout=DEVNULL, cwd=dot_config)
@@ -641,17 +642,9 @@ def rice(paths, remote):
     print("\033[90m", end="", flush=True)
     git_push = run(
         ["git", "push", "-uf", "origin", "main"],
-        stdout=PIPE,
         cwd=dot_config,
-        text=True
     )
-    for l in git_push.stdout.splitlines():
-        print(l) # show output of git push
-
-    if "Writing objects" in git_push.stdout:
-        print("\n\033[92mDone!\033[0m")
-    else:
-        print("\033[0mNo changes found, repo up to date", end="")
+    # don't bother with output handling here, just let the user look at git's output
 
 
 
