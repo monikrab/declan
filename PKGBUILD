@@ -14,35 +14,20 @@ optdepends=(
     "github-cli: for 'rice'"
 )
 
-# Replace release tarball with main branch during beta
-# 
-# source=(
-#     "https://github.com/monikrab/declan/archive/refs/tags/v${pkgver}.tar.gz"
-# )
-# sha256sums=("0432fc2eee8092f8757ad2025d5c7961a600722233c62bcc4c2cc4fe792bda6c")
+Replace release tarball with main branch during beta
 
 source=(
-    "git+https://github.com/monikrab/declan.git#branch=main"
+    "https://github.com/monikrab/declan/archive/refs/tags/v${pkgver}.tar.gz"
 )
+
 sha256sums=('SKIP')
-
-# $pkgver obsolete without a release
-# package() {
-#     install -Dm755 \
-#         "$srcdir/$pkgname-$pkgver/src/declan.py" \
-#         "$pkgdir/usr/bin/declan"
-
-#     install -Dm644 \
-#         "$srcdir/$pkgname-$pkgver/man/declan.1" \
-#         "$pkgdir/usr/share/man/man1/declan.1"
-# }
 
 package() {
     install -Dm755 \
-        "$srcdir/$pkgname/src/declan.py" \
+        "$srcdir/$pkgname-$pkgver/src/declan.py" \
         "$pkgdir/usr/bin/declan"
 
     install -Dm644 \
-        "$srcdir/$pkgname/man/declan.1" \
+        "$srcdir/$pkgname-$pkgver/man/declan.1" \
         "$pkgdir/usr/share/man/man1/declan.1"
 }

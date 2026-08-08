@@ -92,6 +92,43 @@ Though unnecessary, consider appending paths which are directories with a slash 
 
 
 
+.SH EXTRAS
+Since Declan only reads its pre-defined keys, the user can take advantage of this by creating other, unrelated keys, which declare things that Declan does not manage.
+.sp 1
+For example, new keys can be created inside existing ones:
+
+.nf
+"backup": {
+    "enabled": true,
+    "path": "~/Backup.tar.xz",
+
+    "remove_later": "~/temp"
+    "include": [
+        "~/temp",
+        "~/.local/share",
+        ...
+    ]
+}
+.fi
+
+New top-level keys can also be helpful:
+
+.nf
+"reminders": {
+    "scheduler": "scx_rustland",
+    
+    "scripts": [
+        "ln -s ~/.config/file ~/file",
+        "chsh -s /usr/bin/zsh"
+    ]
+}
+.fi
+
+Automated script execution is not a planned feature in Declan 1.x. However, external tools can parse Declan's configuration file if the feature is desired.
+
+
+
+
 .SH OPERATIONS
 Configurations are applied to the system through Declan's various command-line operations:
 
