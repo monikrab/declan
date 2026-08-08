@@ -20,7 +20,7 @@ source=(
     "https://github.com/monikrab/declan/archive/refs/tags/v${pkgver}.tar.gz"
 )
 
-sha256sums=('e5308242552b6368daf5bdc6b02341f0daf2d3ffb795bb13ee32a28d292534f7')
+sha256sums=('c64ef1e5e57fcb43e0ca84e672bf1045673081a8ad82d481e89930c07876906f')
 
 package() {
     install -Dm755 \
